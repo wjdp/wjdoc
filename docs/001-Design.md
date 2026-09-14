@@ -5,13 +5,13 @@ status: in-progress
 
 # wj: design
 
-`wj` is a CLI for the `docs/` convention used across `~/local/*` projects. It replaces the per-repo `bin/list-docs.py` copies and becomes the single place the convention is defined, generated and checked. Humans and agents both use it; agents discover it by running it, not by reading prose in AGENTS.md.
+`wj` is a CLI for the `docs/` convention used across `~/local/*` projects. It becomes the single place the convention is defined, generated and checked. Humans and agents both use it; agents discover it by running it, not by reading prose in AGENTS.md.
 
 ## Decisions
 
 - Project `wjdoc`, binary `wj`. Go. Install with `go install`.
 - Zero config. If config is ever needed it is `docs/wj.jsonc`.
-- One convention for every project. Existing repos are migrated to it, not accommodated.
+- One convention for every project, no per-project variation.
 - Wrapper, not framework: no section skeletons, no required headings. Structure is the project's and the agent's business.
 - Agents write doc files directly and rely on `wj lint`. No write-through-tool requirement.
 - Lint runs on commit, never on edit.
@@ -87,7 +87,7 @@ Non-TTY or `--plain`: tab-separated, no colour, no decoration.
 ## Plan
 
 1. Core: discover, parse, `list`, `show`, plain and pretty output.
-2. `lint` and `new`, then migrate grate, nthp-api and lumina and delete their `bin/list-docs.py`.
+2. `lint` and `new`.
 3. `set`, `next`, `links`, `backlinks`, `init` with hook.
 4. `--all`, git columns, `history`, `repad`.
 5. Skill and `setup`.
