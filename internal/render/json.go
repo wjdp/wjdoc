@@ -7,13 +7,15 @@ import (
 )
 
 // jsonDoc is the stable JSON shape shared by list and show, per
-// docs/001-Design.md "Output": number, path, type, status, title, modified.
+// docs/001-Design.md "Output": number, path, type, status, title, created,
+// modified.
 type jsonDoc struct {
 	Number   int     `json:"number"`
 	Path     string  `json:"path"`
 	Type     string  `json:"type"`
 	Status   string  `json:"status"`
 	Title    string  `json:"title"`
+	Created  *string `json:"created"`
 	Modified *string `json:"modified"`
 	Err      *string `json:"error"`
 }
@@ -31,6 +33,10 @@ func toJSONDoc(doc docs.Document) jsonDoc {
 		Type:   doc.Type,
 		Status: doc.Status,
 		Title:  doc.Title,
+	}
+	if !doc.Created.IsZero() {
+		created := doc.Created.Format(time.RFC3339)
+		jd.Created = &created
 	}
 	if !doc.Modified.IsZero() {
 		modified := doc.Modified.Format(time.RFC3339)

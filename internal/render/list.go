@@ -4,6 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"path"
+	"slices"
+	"sort"
 	"strings"
 	"time"
 
@@ -11,30 +14,63 @@ import (
 	"github.com/wjdp/wjdoc/internal/docs"
 )
 
-// minTitleWidth is the narrowest Title column worth showing; below it the
-// column is dropped rather than squeezed to nothing.
-const minTitleWidth = 12
+const (
+	// minTitleWidth is the narrowest Title column the table will ever print.
+	minTitleWidth = 12
+	// roomyTitleWidth is the width Title is given before optional columns stop
+	// being dropped to make space for it.
+	roomyTitleWidth = 30
+)
 
-// List writes docs in the given mode. width is the terminal width the
-// caller measured; it only affects the Pretty table's Title column.
-func List(w io.Writer, docs []docs.Document, mode Mode, width int) {
+// column identifies one table column.
+type column int
+
+const (
+	colNumber column = iota
+	colPath
+	colStatus
+	colTitle
+	colType
+	colCreated
+	colModified
+)
+
+// dropOrder is the order optional columns give up their space when the
+// terminal is too narrow for a comfortable Title.
+var dropOrder = []column{colType, colCreated, colModified}
+
+var headers = map[column]string{
+	colNumber:   "#",
+	colPath:     "Document",
+	colStatus:   "Status",
+	colTitle:    "Title",
+	colType:     "Type",
+	colCreated:  "Created",
+	colModified: "Modified",
+}
+
+// List writes docs in the given mode. width is the terminal width the caller
+// measured; it only affects the Pretty table. showPaths adds the repo-relative
+// path as its own column.
+func List(w io.Writer, list []docs.Document, mode Mode, width int, showPaths bool) {
 	switch mode {
 	case JSON:
-		listJSON(w, docs)
+		listJSON(w, list)
 	case Plain:
-		listPlain(w, docs)
+		listPlain(w, list)
 	default:
-		listPretty(w, docs, width)
+		listPretty(w, list, width, showPaths)
 	}
 }
 
-func listPlain(w io.Writer, docs []docs.Document) {
-	for _, doc := range docs {
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", doc.Path, doc.Type, doc.Status, doc.Title, isoDate(doc.Modified))
+func listPlain(w io.Writer, list []docs.Document) {
+	for _, doc := range list {
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n",
+			doc.Path, doc.Type, doc.Status, doc.Title, isoDate(doc.Created), isoDate(doc.Modified))
 	}
 }
 
-// isoDate is the date part of a modification time, empty when git knows none.
+// isoDate is the date part of a commit time, empty when git knows none.
 func isoDate(t time.Time) string {
 	if t.IsZero() {
 		return ""
@@ -42,8 +78,8 @@ func isoDate(t time.Time) string {
 	return t.Format("2006-01-02")
 }
 
-// RelativeAge is a compact age for a modification time: "today", "3d", "2w",
-// "5mo", "1y". A zero time has no age.
+// RelativeAge is a compact age for a commit time: "today", "3d", "2w", "5mo",
+// "1y". A zero time has no age.
 func RelativeAge(t time.Time) string {
 	if t.IsZero() {
 		return ""
@@ -63,9 +99,9 @@ func RelativeAge(t time.Time) string {
 	}
 }
 
-func listJSON(w io.Writer, docs []docs.Document) {
-	rows := make([]jsonDoc, len(docs))
-	for i, doc := range docs {
+func listJSON(w io.Writer, list []docs.Document) {
+	rows := make([]jsonDoc, len(list))
+	for i, doc := range list {
 		rows[i] = toJSONDoc(doc)
 	}
 	enc := json.NewEncoder(w)
@@ -73,77 +109,93 @@ func listJSON(w io.Writer, docs []docs.Document) {
 	_ = enc.Encode(rows)
 }
 
-func listPretty(w io.Writer, list []docs.Document, width int) {
-	headers := []string{"Document", "Type", "Status", "Modified", "Title"}
+// numberCell is the padded document number, or the filename for a file that
+// does not follow the numbering convention.
+func numberCell(doc docs.Document) string {
+	if doc.Number < 0 {
+		return path.Base(doc.Path)
+	}
+	width := doc.Width
+	if width < 1 {
+		width = 1
+	}
+	return fmt.Sprintf("%0*d", width, doc.Number)
+}
 
-	// Column widths come from plain (unstyled) content only.
-	plainCell := func(doc docs.Document, col int) string {
-		switch col {
-		case 0:
-			return doc.Path
-		case 1:
-			return displayOrDash(doc.Type)
-		case 2:
-			return displayOrDash(doc.Status)
-		case 3:
-			return RelativeAge(doc.Modified)
-		default:
-			return doc.Title
-		}
+func plainCell(doc docs.Document, col column) string {
+	switch col {
+	case colNumber:
+		return numberCell(doc)
+	case colPath:
+		return doc.Path
+	case colStatus:
+		return doc.Status
+	case colTitle:
+		return titleText(doc)
+	case colType:
+		return doc.Type
+	case colCreated:
+		return RelativeAge(doc.Created)
+	default:
+		return RelativeAge(doc.Modified)
 	}
-	plainWidths := make([]int, len(headers))
-	for i, h := range headers {
-		plainWidths[i] = lipgloss.Width(h)
+}
+
+// titleText is the document's title, or its parse error when it has one.
+func titleText(doc docs.Document) string {
+	if doc.Err != nil {
+		return doc.Err.Error()
 	}
-	for _, doc := range list {
-		for col := range headers {
-			if width := lipgloss.Width(plainCell(doc, col)); width > plainWidths[col] {
-				plainWidths[col] = width
+	return doc.Title
+}
+
+func listPretty(w io.Writer, list []docs.Document, width int, showPaths bool) {
+	columns := []column{colNumber}
+	if showPaths {
+		columns = append(columns, colPath)
+	}
+	columns = append(columns, colStatus, colTitle, colType, colCreated, colModified)
+
+	widths := map[column]int{}
+	for _, col := range columns {
+		widths[col] = lipgloss.Width(headers[col])
+		for _, doc := range list {
+			if cell := lipgloss.Width(plainCell(doc, col)); cell > widths[col] {
+				widths[col] = cell
 			}
 		}
 	}
 
-	titleWidth := width - (plainWidths[0] + plainWidths[1] + plainWidths[2] + plainWidths[3] + len(headers) - 1)
-	showTitle := titleWidth >= minTitleWidth
-	if !showTitle {
-		headers = headers[:4]
-		plainWidths = plainWidths[:4]
-	} else if plainWidths[4] > titleWidth {
-		plainWidths[4] = titleWidth
-	}
-
-	rows := make([][]string, 0, len(list))
-	for _, doc := range list {
-		cells := []string{
-			hyperlink(doc.AbsPath, pathStyle.Render(doc.Path)),
-			StyleValue(doc.Type, typeStyles),
-			StyleValue(doc.Status, statusStyles),
-			faintStyle.Render(padLeft(RelativeAge(doc.Modified), plainWidths[3])),
+	for _, droppable := range dropOrder {
+		if titleSpace(columns, widths, width) >= roomyTitleWidth {
+			break
 		}
-		if showTitle {
-			cells = append(cells, titleStyle.Render(truncate(doc.Title, plainWidths[4])))
-		}
-		rows = append(rows, cells)
+		columns = without(columns, droppable)
 	}
+	widths[colTitle] = min(widths[colTitle], max(titleSpace(columns, widths, width), minTitleWidth))
 
 	var b strings.Builder
-	for i, h := range headers {
-		b.WriteString(headerStyle.Render(padRight(h, plainWidths[i])))
-		if i < len(headers)-1 {
+	for index, col := range columns {
+		b.WriteString(headerStyle.Render(padded(headers[col], widths[col], col)))
+		if index < len(columns)-1 {
 			b.WriteString(" ")
 		}
 	}
 	b.WriteString("\n")
 
-	for _, cells := range rows {
-		for i, cell := range cells {
-			b.WriteString(padRight(cell, plainWidths[i]))
-			if i < len(cells)-1 {
-				b.WriteString(" ")
+	for _, doc := range list {
+		var row strings.Builder
+		for index, col := range columns {
+			row.WriteString(styledCell(doc, col, widths[col]))
+			if index < len(columns)-1 {
+				row.WriteString(" ")
 			}
 		}
+		b.WriteString(strings.TrimRight(row.String(), " "))
 		b.WriteString("\n")
 	}
+	b.WriteString(faintStyle.Render(countsLine(list)))
+	b.WriteString("\n")
 	fmt.Fprint(w, b.String())
 
 	for _, doc := range list {
@@ -151,6 +203,132 @@ func listPretty(w io.Writer, list []docs.Document, width int) {
 			fmt.Fprintln(w, errorStyle.Render(fmt.Sprintf("invalid frontmatter %s: %s", doc.Path, doc.Err)))
 		}
 	}
+}
+
+// titleSpace is the room left for Title once every other shown column has
+// taken its width, separators included.
+func titleSpace(columns []column, widths map[column]int, width int) int {
+	space := width - (len(columns) - 1)
+	for _, col := range columns {
+		if col != colTitle {
+			space -= widths[col]
+		}
+	}
+	return space
+}
+
+func without(columns []column, dropped column) []column {
+	kept := make([]column, 0, len(columns))
+	for _, col := range columns {
+		if col != dropped {
+			kept = append(kept, col)
+		}
+	}
+	return kept
+}
+
+// padded aligns text within a column: ages sit on the right, everything else
+// on the left.
+func padded(text string, width int, col column) string {
+	if col == colCreated || col == colModified {
+		return padLeft(text, width)
+	}
+	return padRight(text, width)
+}
+
+// styledCell renders one cell: the content is styled first and padded after,
+// so that faint or struck-through styling never bleeds into the gap between
+// columns.
+func styledCell(doc docs.Document, col column, width int) string {
+	text := truncate(plainCell(doc, col), width)
+	faded := doc.Status == "done" || doc.Status == "superseded"
+
+	var styled string
+	switch col {
+	case colNumber:
+		style := pathStyle
+		if faded {
+			style = style.Faint(true)
+		}
+		styled = hyperlink(doc.AbsPath, style.Render(text))
+	case colPath:
+		style := pathStyle
+		if faded {
+			style = faintStyle
+		}
+		styled = hyperlink(doc.AbsPath, style.Render(text))
+	case colStatus:
+		if doc.Status == "" {
+			styled = text
+			break
+		}
+		style := styleFor(doc.Status, statusStyles)
+		if faded {
+			style = style.Bold(false).Faint(true)
+		}
+		styled = style.Render(text)
+	case colTitle:
+		switch {
+		case doc.Err != nil:
+			styled = errorStyle.Render(text)
+		case doc.Status == "superseded":
+			styled = titleStyle.Faint(true).Strikethrough(true).Render(text)
+		case faded:
+			styled = titleStyle.Faint(true).Render(text)
+		default:
+			styled = titleStyle.Render(text)
+		}
+	default:
+		styled = faintStyle.Render(text)
+	}
+	return padded(styled, width, col)
+}
+
+// styleFor is the style for a known value, or the plain style for one the
+// convention does not name.
+func styleFor(value string, styles map[string]lipgloss.Style) lipgloss.Style {
+	if style, ok := styles[value]; ok {
+		return style
+	}
+	return lipgloss.NewStyle()
+}
+
+// countsOrder is the order statuses are summarised in, matching the order
+// wj next considers them actionable, then the terminal statuses.
+var countsOrder = []string{"in-progress", "blocked", "todo", "planned", "open", "done", "superseded"}
+
+// countsLine summarises the listing by status: the known statuses in
+// convention order, then any unknown ones alphabetically, then the documents
+// with no status at all. Zero counts are omitted.
+func countsLine(list []docs.Document) string {
+	counts := map[string]int{}
+	references := 0
+	for _, doc := range list {
+		if doc.Status == "" {
+			references++
+			continue
+		}
+		counts[doc.Status]++
+	}
+
+	unknown := []string{}
+	for status := range counts {
+		if !slices.Contains(countsOrder, status) {
+			unknown = append(unknown, status)
+		}
+	}
+	sort.Strings(unknown)
+
+	parts := []string{}
+	for _, status := range append(append([]string{}, countsOrder...), unknown...) {
+		if counts[status] > 0 {
+			parts = append(parts, fmt.Sprintf("%d %s", counts[status], status))
+		}
+	}
+	if references > 0 {
+		parts = append(parts, fmt.Sprintf("%d reference", references))
+	}
+	return strings.Join(parts, " · ")
 }
 
 func displayOrDash(value string) string {

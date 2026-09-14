@@ -55,6 +55,7 @@ func TestShowJSON(t *testing.T) {
   "type": "task",
   "status": "todo",
   "title": "Example",
+  "created": null,
   "modified": null,
   "error": null,
   "body": "\n# Example\n\nBody text.\n"
