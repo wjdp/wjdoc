@@ -23,6 +23,8 @@ var (
 	headerStyle  = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("15")).Background(lipgloss.Color("18"))
 	pathStyle    = lipgloss.NewStyle().Bold(true)
 	titleStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("15"))
+	faintStyle   = lipgloss.NewStyle().Faint(true)
+	errorStyle   = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("9"))
 )
 
 // StyleValue colours a type or status; unknown values render in the default
