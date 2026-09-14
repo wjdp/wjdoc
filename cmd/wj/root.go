@@ -48,7 +48,7 @@ Examples:
 	root.PersistentFlags().BoolVar(&shared.json, "json", false, "JSON output with stable field names")
 	root.PersistentFlags().StringVarP(&shared.directory, "directory", "C", "", "run as if wj was started in `dir`")
 
-	root.AddCommand(listCommand(shared), showCommand(shared), conventionsCommand())
+	root.AddCommand(listCommand(shared), showCommand(shared), conventionsCommand(), nextCommand(shared), searchCommand(shared))
 	return root
 }
 
