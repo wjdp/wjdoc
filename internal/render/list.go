@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/wjdp/wjdoc/internal/docs"
@@ -29,7 +30,36 @@ func List(w io.Writer, docs []docs.Document, mode Mode, width int) {
 
 func listPlain(w io.Writer, docs []docs.Document) {
 	for _, doc := range docs {
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", doc.Path, doc.Type, doc.Status, doc.Title)
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", doc.Path, doc.Type, doc.Status, doc.Title, isoDate(doc.Modified))
+	}
+}
+
+// isoDate is the date part of a modification time, empty when git knows none.
+func isoDate(t time.Time) string {
+	if t.IsZero() {
+		return ""
+	}
+	return t.Format("2006-01-02")
+}
+
+// RelativeAge is a compact age for a modification time: "today", "3d", "2w",
+// "5mo", "1y". A zero time has no age.
+func RelativeAge(t time.Time) string {
+	if t.IsZero() {
+		return ""
+	}
+	days := int(time.Since(t).Hours() / 24)
+	switch {
+	case days <= 0:
+		return "today"
+	case days < 7:
+		return fmt.Sprintf("%dd", days)
+	case days < 30:
+		return fmt.Sprintf("%dw", days/7)
+	case days < 365:
+		return fmt.Sprintf("%dmo", days/30)
+	default:
+		return fmt.Sprintf("%dy", days/365)
 	}
 }
 
@@ -46,29 +76,12 @@ func listJSON(w io.Writer, docs []docs.Document) {
 func listPretty(w io.Writer, list []docs.Document, width int) {
 	showTitle := width >= titleColumnWidth
 
-	headers := []string{"Document", "Type", "Status"}
+	headers := []string{"Document", "Type", "Status", "Modified"}
 	if showTitle {
 		headers = append(headers, "Title")
 	}
 
-	rows := make([][]string, 0, len(list))
-	for _, doc := range list {
-		cells := []string{
-			hyperlink(doc.AbsPath, pathStyle.Render(doc.Path)),
-			StyleValue(doc.Type, typeStyles),
-			StyleValue(doc.Status, statusStyles),
-		}
-		if showTitle {
-			cells = append(cells, titleStyle.Render(doc.Title))
-		}
-		rows = append(rows, cells)
-	}
-
-	// Column widths from plain (unstyled) content only.
-	plainWidths := make([]int, len(headers))
-	for i, h := range headers {
-		plainWidths[i] = lipgloss.Width(h)
-	}
+	// Column widths come from plain (unstyled) content only.
 	plainCell := func(doc docs.Document, col int) string {
 		switch col {
 		case 0:
@@ -77,9 +90,15 @@ func listPretty(w io.Writer, list []docs.Document, width int) {
 			return displayOrDash(doc.Type)
 		case 2:
 			return displayOrDash(doc.Status)
+		case 3:
+			return RelativeAge(doc.Modified)
 		default:
 			return doc.Title
 		}
+	}
+	plainWidths := make([]int, len(headers))
+	for i, h := range headers {
+		plainWidths[i] = lipgloss.Width(h)
 	}
 	for _, doc := range list {
 		for col := range headers {
@@ -87,6 +106,20 @@ func listPretty(w io.Writer, list []docs.Document, width int) {
 				plainWidths[col] = width
 			}
 		}
+	}
+
+	rows := make([][]string, 0, len(list))
+	for _, doc := range list {
+		cells := []string{
+			hyperlink(doc.AbsPath, pathStyle.Render(doc.Path)),
+			StyleValue(doc.Type, typeStyles),
+			StyleValue(doc.Status, statusStyles),
+			faintStyle.Render(padLeft(RelativeAge(doc.Modified), plainWidths[3])),
+		}
+		if showTitle {
+			cells = append(cells, titleStyle.Render(doc.Title))
+		}
+		rows = append(rows, cells)
 	}
 
 	var b strings.Builder
@@ -131,6 +164,15 @@ func padRight(s string, width int) string {
 		return s
 	}
 	return s + strings.Repeat(" ", gap)
+}
+
+// padLeft right-aligns s within width, by display width.
+func padLeft(s string, width int) string {
+	gap := width - lipgloss.Width(s)
+	if gap <= 0 {
+		return s
+	}
+	return strings.Repeat(" ", gap) + s
 }
 
 // hyperlink wraps text in an OSC 8 escape sequence linking to target. It adds

@@ -50,8 +50,8 @@ func TestListPlainHasOneTabbedLinePerFile(t *testing.T) {
 		t.Fatalf("got %d lines, want %d:\n%s", len(got), fixtureFiles, strings.Join(got, "\n"))
 	}
 	for _, line := range got {
-		if fields := strings.Split(line, "\t"); len(fields) != 4 {
-			t.Errorf("line %q has %d tab-separated fields, want 4", line, len(fields))
+		if fields := strings.Split(line, "\t"); len(fields) != 5 {
+			t.Errorf("line %q has %d tab-separated fields, want 5", line, len(fields))
 		}
 	}
 	if !strings.Contains(got[len(got)-1], "docs/README.md") {

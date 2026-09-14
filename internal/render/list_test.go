@@ -28,8 +28,8 @@ func TestListPlain(t *testing.T) {
 	var buf strings.Builder
 	List(&buf, sampleDocs(), Plain, 0)
 
-	want := "docs/001-Sync-robustness.md\ttask\tin-progress\tSync robustness\n" +
-		"docs/002-No-frontmatter.md\t\t\tNo frontmatter\n"
+	want := "docs/001-Sync-robustness.md\ttask\tin-progress\tSync robustness\t2026-01-02\n" +
+		"docs/002-No-frontmatter.md\t\t\tNo frontmatter\t\n"
 	if buf.String() != want {
 		t.Errorf("got:\n%q\nwant:\n%q", buf.String(), want)
 	}
@@ -77,5 +77,34 @@ func TestListPrettyContainsContent(t *testing.T) {
 		if width >= 120 && !strings.Contains(out, "Sync robustness") {
 			t.Errorf("width %d: missing title in output:\n%s", width, out)
 		}
+	}
+}
+
+func TestRelativeAge(t *testing.T) {
+	now := time.Now()
+	cases := []struct {
+		modified time.Time
+		want     string
+	}{
+		{time.Time{}, ""},
+		{now, "today"},
+		{now.AddDate(0, 0, -3), "3d"},
+		{now.AddDate(0, 0, -14), "2w"},
+		{now.AddDate(0, 0, -150), "5mo"},
+		{now.AddDate(-1, 0, 0), "1y"},
+	}
+	for _, c := range cases {
+		if got := RelativeAge(c.modified); got != c.want {
+			t.Errorf("RelativeAge(%v) = %q, want %q", c.modified, got, c.want)
+		}
+	}
+}
+
+func TestListPrettyShowsTheModifiedColumn(t *testing.T) {
+	var buf strings.Builder
+	List(&buf, sampleDocs(), Pretty, 160)
+
+	if !strings.Contains(buf.String(), "Modified") {
+		t.Errorf("no Modified header:\n%s", buf.String())
 	}
 }
