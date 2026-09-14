@@ -51,12 +51,8 @@ func listPretty(w io.Writer, list []docs.Document, width int) {
 		headers = append(headers, "Title")
 	}
 
-	type row struct {
-		cells []string
-		even  bool
-	}
-	rows := make([]row, 0, len(list))
-	for i, doc := range list {
+	rows := make([][]string, 0, len(list))
+	for _, doc := range list {
 		cells := []string{
 			hyperlink(doc.AbsPath, pathStyle.Render(doc.Path)),
 			StyleValue(doc.Type, typeStyles),
@@ -65,7 +61,7 @@ func listPretty(w io.Writer, list []docs.Document, width int) {
 		if showTitle {
 			cells = append(cells, titleStyle.Render(doc.Title))
 		}
-		rows = append(rows, row{cells: cells, even: i%2 == 0})
+		rows = append(rows, cells)
 	}
 
 	// Column widths from plain (unstyled) content only.
@@ -102,14 +98,10 @@ func listPretty(w io.Writer, list []docs.Document, width int) {
 	}
 	b.WriteString("\n")
 
-	for _, r := range rows {
-		for i, cell := range r.cells {
-			padded := padStyled(cell, plainWidths[i])
-			if r.even {
-				padded = faintStyle.Render(padded)
-			}
-			b.WriteString(padded)
-			if i < len(r.cells)-1 {
+	for _, cells := range rows {
+		for i, cell := range cells {
+			b.WriteString(padRight(cell, plainWidths[i]))
+			if i < len(cells)-1 {
 				b.WriteString(" ")
 			}
 		}
@@ -142,18 +134,9 @@ func displayOrDash(value string) string {
 	return value
 }
 
-// padRight pads plain text to width, counting display width.
+// padRight pads to width by display width, so ANSI escapes never throw off
+// column alignment.
 func padRight(s string, width int) string {
-	gap := width - lipgloss.Width(s)
-	if gap <= 0 {
-		return s
-	}
-	return s + strings.Repeat(" ", gap)
-}
-
-// padStyled pads a styled string to width, counting its display width (which
-// ignores ANSI escapes), so styling never throws off column alignment.
-func padStyled(s string, width int) string {
 	gap := width - lipgloss.Width(s)
 	if gap <= 0 {
 		return s
