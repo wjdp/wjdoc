@@ -109,19 +109,6 @@ func listPretty(w io.Writer, list []docs.Document, width int) {
 	}
 	fmt.Fprint(w, b.String())
 
-	withoutType, withoutStatus := 0, 0
-	for _, doc := range list {
-		if doc.Type == "" {
-			withoutType++
-		}
-		if doc.Status == "" {
-			withoutStatus++
-		}
-	}
-	if withoutType > 0 || withoutStatus > 0 {
-		fmt.Fprintln(w, faintStyle.Render(fmt.Sprintf("%d without a type · %d without a status", withoutType, withoutStatus)))
-	}
-
 	for _, doc := range list {
 		if doc.Err != nil {
 			fmt.Fprintln(w, errorStyle.Render(fmt.Sprintf("invalid frontmatter %s: %s", doc.Path, doc.Err)))
