@@ -1,0 +1,5 @@
+---
+type: reference
+---
+
+# Lowercase title
