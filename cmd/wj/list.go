@@ -41,7 +41,7 @@ set. Paths are then prefixed with the project directory name and filters apply
 across all of them.
 
 On a terminal: a bold "<project> docs · N files" line, then a coloured table of
-document, type, status, modified and, at 120 columns or wider, title.
+document, type, status, modified and title, the title truncated to fit.
 Piped, or with --plain: one line per document, tab-separated, no header and no
 colour: path, type, status, title, modified. Absent fields are empty.
 With --json: an array of objects with number, path, type, status, title,

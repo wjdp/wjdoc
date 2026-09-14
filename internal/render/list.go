@@ -11,9 +11,9 @@ import (
 	"github.com/wjdp/wjdoc/internal/docs"
 )
 
-// titleColumnWidth is the terminal width at and above which the Title
-// column is shown in the pretty table (docs/001-Design.md "Output").
-const titleColumnWidth = 120
+// minTitleWidth is the narrowest Title column worth showing; below it the
+// column is dropped rather than squeezed to nothing.
+const minTitleWidth = 12
 
 // List writes docs in the given mode. width is the terminal width the
 // caller measured; it only affects the Pretty table's Title column.
@@ -74,12 +74,7 @@ func listJSON(w io.Writer, docs []docs.Document) {
 }
 
 func listPretty(w io.Writer, list []docs.Document, width int) {
-	showTitle := width >= titleColumnWidth
-
-	headers := []string{"Document", "Type", "Status", "Modified"}
-	if showTitle {
-		headers = append(headers, "Title")
-	}
+	headers := []string{"Document", "Type", "Status", "Modified", "Title"}
 
 	// Column widths come from plain (unstyled) content only.
 	plainCell := func(doc docs.Document, col int) string {
@@ -108,6 +103,15 @@ func listPretty(w io.Writer, list []docs.Document, width int) {
 		}
 	}
 
+	titleWidth := width - (plainWidths[0] + plainWidths[1] + plainWidths[2] + plainWidths[3] + len(headers) - 1)
+	showTitle := titleWidth >= minTitleWidth
+	if !showTitle {
+		headers = headers[:4]
+		plainWidths = plainWidths[:4]
+	} else if plainWidths[4] > titleWidth {
+		plainWidths[4] = titleWidth
+	}
+
 	rows := make([][]string, 0, len(list))
 	for _, doc := range list {
 		cells := []string{
@@ -117,7 +121,7 @@ func listPretty(w io.Writer, list []docs.Document, width int) {
 			faintStyle.Render(padLeft(RelativeAge(doc.Modified), plainWidths[3])),
 		}
 		if showTitle {
-			cells = append(cells, titleStyle.Render(doc.Title))
+			cells = append(cells, titleStyle.Render(truncate(doc.Title, plainWidths[4])))
 		}
 		rows = append(rows, cells)
 	}
@@ -179,4 +183,17 @@ func padLeft(s string, width int) string {
 // no visible width, so padding must be computed on the unwrapped text first.
 func hyperlink(target, text string) string {
 	return "\x1b]8;;file://" + target + "\x1b\\" + text + "\x1b]8;;\x1b\\"
+}
+
+// truncate cuts text to width display cells, ending in an ellipsis when it had
+// to cut anything.
+func truncate(text string, width int) string {
+	if lipgloss.Width(text) <= width {
+		return text
+	}
+	runes := []rune(text)
+	for len(runes) > 0 && lipgloss.Width(string(runes))+1 > width {
+		runes = runes[:len(runes)-1]
+	}
+	return string(runes) + "…"
 }

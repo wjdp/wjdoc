@@ -68,7 +68,7 @@ Git awareness (all read-only, shelling out to `git`):
 
 ## Output
 
-TTY: colour table, path as a clickable `file://` link, type and status coloured, title column dropped below 120 columns. Same palette as the existing script.
+TTY: colour table, path as a clickable `file://` link, type and status coloured, title column sized to the remaining width and truncated, dropped only when under 12 columns remain. Same palette as the existing script.
 Non-TTY or `--plain`: tab-separated, no colour, no decoration.
 `--json` on `list`, `show`, `next`, `lint`, `links`: stable field names `number, path, type, status, title, modified`.
 
