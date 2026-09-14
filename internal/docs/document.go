@@ -26,6 +26,9 @@ type Document struct {
 	Frontmatter map[string]any
 	// Body is the markdown after the frontmatter block.
 	Body string
+	// Created is the git commit date the file first appeared under any name;
+	// zero when unknown.
+	Created time.Time
 	// Modified is the last git commit date touching the file; zero when unknown.
 	Modified time.Time
 	// Err records a parse problem (e.g. invalid YAML) without dropping the document.

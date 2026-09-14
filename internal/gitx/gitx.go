@@ -77,12 +77,21 @@ type Commit struct {
 	Subject string
 }
 
-// ModifiedDates maps each of paths (relative to root, slash separated) to the
-// date of the most recent commit touching it. It reads the whole docs/ history
-// in one git invocation rather than one per file. Outside a repository, or
-// without git, it returns an empty map and no error.
-func ModifiedDates(root string, paths []string) (map[string]time.Time, error) {
-	dates := map[string]time.Time{}
+// Dates are the git-derived lifetimes of a document: the commit that first
+// introduced it under any name, and the most recent commit to change its
+// content. A pure rename is not a content change.
+type Dates struct {
+	Created  time.Time
+	Modified time.Time
+}
+
+// DocumentDates maps each of paths (relative to root, slash separated) to its
+// Dates. It reads the whole docs/ history in one git invocation rather than one
+// per file, following renames so that a document keeps the age of its earlier
+// names. Outside a repository, or without git, it returns an empty map and no
+// error.
+func DocumentDates(root string, paths []string) (map[string]Dates, error) {
+	dates := map[string]Dates{}
 	if len(paths) == 0 {
 		return dates, nil
 	}
@@ -93,9 +102,23 @@ func ModifiedDates(root string, paths []string) (map[string]time.Time, error) {
 	}
 
 	log, err := Run(root, "-c", "core.quotePath=false", "log",
-		"--format=%x00%cI", "--name-only", "--date-order", "--relative", "--", "docs/")
+		"--format=%x00%cI", "--name-status", "-M", "--date-order", "--relative", "--", "docs/")
 	if err != nil {
-		return map[string]time.Time{}, nil
+		return map[string]Dates{}, nil
+	}
+
+	// renamedTo maps a path as it was known earlier in history to the path the
+	// same document has today. The log is walked newest first, so a rename is
+	// always seen before the commits that used the older name.
+	renamedTo := map[string]string{}
+	resolve := func(path string) (string, bool) {
+		if today, renamed := renamedTo[path]; renamed {
+			path = today
+		}
+		if !wanted[path] {
+			return "", false
+		}
+		return path, true
 	}
 
 	var current time.Time
@@ -107,15 +130,40 @@ func ModifiedDates(root string, paths []string) (map[string]time.Time, error) {
 			}
 			continue
 		}
-		path := strings.TrimSpace(line)
-		if path == "" || current.IsZero() || !wanted[path] {
+
+		fields := strings.Split(strings.TrimRight(line, "\r"), "\t")
+		if len(fields) < 2 || current.IsZero() {
 			continue
 		}
-		if _, seen := dates[path]; !seen {
-			dates[path] = current
+		change, path := fields[0], fields[1]
+		if strings.HasPrefix(change, "R") && len(fields) >= 3 {
+			path = fields[2]
+			if today, ok := resolve(path); ok {
+				renamedTo[fields[1]] = today
+			}
 		}
+
+		name, ok := resolve(path)
+		if !ok {
+			continue
+		}
+		entry := dates[name]
+		entry.Created = current
+		if entry.Modified.IsZero() && changesContent(change) {
+			entry.Modified = current
+		}
+		dates[name] = entry
 	}
 	return dates, nil
+}
+
+// changesContent reports whether a --name-status change letter touched the
+// file's bytes. R100 is a pure rename and leaves the content alone.
+func changesContent(change string) bool {
+	if change == "R100" {
+		return false
+	}
+	return strings.HasPrefix(change, "A") || strings.HasPrefix(change, "M") || strings.HasPrefix(change, "R")
 }
 
 // History lists the commits touching path, newest first, following renames.

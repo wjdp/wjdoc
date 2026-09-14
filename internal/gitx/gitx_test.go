@@ -1,9 +1,11 @@
 package gitx
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -144,30 +146,138 @@ func historyRepository(t *testing.T) string {
 	return root
 }
 
-func TestModifiedDatesCoversEveryTrackedDoc(t *testing.T) {
+func TestDocumentDatesCoversEveryTrackedDoc(t *testing.T) {
 	root := repository(t)
 
-	dates, err := ModifiedDates(root, []string{"docs/001-First.md", "docs/002-Second.md"})
+	dates, err := DocumentDates(root, []string{"docs/001-First.md", "docs/002-Second.md"})
 	if err != nil {
-		t.Fatalf("ModifiedDates: %v", err)
+		t.Fatalf("DocumentDates: %v", err)
 	}
-	if _, present := dates["docs/001-First.md"]; !present {
-		t.Errorf("no date for the committed doc: %v", dates)
+	first, present := dates["docs/001-First.md"]
+	if !present {
+		t.Fatalf("no dates for the committed doc: %v", dates)
+	}
+	if first.Created.IsZero() || first.Modified.IsZero() {
+		t.Errorf("incomplete dates: %+v", first)
 	}
 	if _, present := dates["docs/002-Second.md"]; present {
 		t.Errorf("dated a doc that is not on this branch: %v", dates)
 	}
 }
 
-func TestModifiedDatesOutsideARepositoryIsEmpty(t *testing.T) {
+func TestDocumentDatesOutsideARepositoryIsEmpty(t *testing.T) {
 	requireGit(t)
 
-	dates, err := ModifiedDates(t.TempDir(), []string{"docs/001-First.md"})
+	dates, err := DocumentDates(t.TempDir(), []string{"docs/001-First.md"})
 	if err != nil {
-		t.Fatalf("ModifiedDates: %v", err)
+		t.Fatalf("DocumentDates: %v", err)
 	}
 	if len(dates) != 0 {
 		t.Errorf("got %v, want an empty map", dates)
+	}
+}
+
+// commitAt commits the staged changes with both dates fixed, so that tests can
+// assert on exact commit times.
+func commitAt(t *testing.T, root, when, message string) {
+	t.Helper()
+	command := exec.Command("git", "-C", root, "commit", "-m", message)
+	command.Env = append(os.Environ(), "GIT_AUTHOR_DATE="+when, "GIT_COMMITTER_DATE="+when)
+	if out, err := command.CombinedOutput(); err != nil {
+		t.Fatalf("git commit: %v: %s", err, out)
+	}
+}
+
+func day(t *testing.T, iso string) string {
+	t.Helper()
+	return iso + "T12:00:00+00:00"
+}
+
+// longBody is a document long enough that a one-line edit still reads as a
+// rename to git's similarity detection.
+func longBody(variant string) string {
+	lines := []string{"# First", ""}
+	for index := range 12 {
+		lines = append(lines, fmt.Sprintf("Paragraph %d of the document.", index))
+	}
+	return strings.Join(append(lines, variant, ""), "\n")
+}
+
+// renameRepository writes one doc, edits it, renames it untouched, then renames
+// it again while editing it, each commit on a known day.
+func renameRepository(t *testing.T) string {
+	t.Helper()
+	requireGit(t)
+
+	root := t.TempDir()
+	git(t, root, "init", "--initial-branch=master")
+	git(t, root, "config", "user.email", "test@example.com")
+	git(t, root, "config", "user.name", "Test")
+
+	writeFile(t, root, "001-First.md", longBody("one"))
+	git(t, root, "add", "docs/001-First.md")
+	commitAt(t, root, day(t, "2026-01-01"), "add first")
+
+	writeFile(t, root, "001-First.md", longBody("two"))
+	git(t, root, "add", "docs/001-First.md")
+	commitAt(t, root, day(t, "2026-02-01"), "edit first")
+
+	git(t, root, "mv", "docs/001-First.md", "docs/001-Renamed.md")
+	commitAt(t, root, day(t, "2026-03-01"), "pure rename")
+
+	git(t, root, "mv", "docs/001-Renamed.md", "docs/001-Renamed-again.md")
+	writeFile(t, root, "001-Renamed-again.md", longBody("three"))
+	git(t, root, "add", "docs/001-Renamed-again.md")
+	commitAt(t, root, day(t, "2026-04-01"), "rename and edit")
+
+	writeFile(t, root, "002-Untouched.md", "# Second\n")
+	git(t, root, "add", "docs/002-Untouched.md")
+	commitAt(t, root, day(t, "2026-05-01"), "add second")
+
+	return root
+}
+
+func TestDocumentDatesFollowsRenamesAndIgnoresPureOnes(t *testing.T) {
+	root := renameRepository(t)
+
+	dates, err := DocumentDates(root, []string{"docs/001-Renamed-again.md", "docs/002-Untouched.md"})
+	if err != nil {
+		t.Fatalf("DocumentDates: %v", err)
+	}
+
+	renamed := dates["docs/001-Renamed-again.md"]
+	if got := renamed.Created.Format("2006-01-02"); got != "2026-01-01" {
+		t.Errorf("created %q, want the first commit under the original name", got)
+	}
+	if got := renamed.Modified.Format("2006-01-02"); got != "2026-04-01" {
+		t.Errorf("modified %q, want the rename that also edited the file", got)
+	}
+
+	second := dates["docs/002-Untouched.md"]
+	if got := second.Created.Format("2006-01-02"); got != "2026-05-01" {
+		t.Errorf("created %q, want its only commit", got)
+	}
+	if !second.Created.Equal(second.Modified) {
+		t.Errorf("a doc committed once has created %v and modified %v", second.Created, second.Modified)
+	}
+}
+
+func TestDocumentDatesIgnoresAPureRenameAsAModification(t *testing.T) {
+	root := renameRepository(t)
+
+	// Before the fourth commit the newest change to the doc is the pure rename
+	// of 2026-03-01, which must not count; the edit of 2026-02-01 does.
+	git(t, root, "checkout", "HEAD~2")
+	dates, err := DocumentDates(root, []string{"docs/001-Renamed.md"})
+	if err != nil {
+		t.Fatalf("DocumentDates: %v", err)
+	}
+	renamed := dates["docs/001-Renamed.md"]
+	if got := renamed.Modified.Format("2006-01-02"); got != "2026-02-01" {
+		t.Errorf("modified %q, want the last content change", got)
+	}
+	if got := renamed.Created.Format("2006-01-02"); got != "2026-01-01" {
+		t.Errorf("created %q, want the first commit", got)
 	}
 }
 
