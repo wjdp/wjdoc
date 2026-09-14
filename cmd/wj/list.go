@@ -153,7 +153,7 @@ func loadAllProjects(root string) ([]docs.Document, int, error) {
 			continue
 		}
 		documents, err := loadWithDates(projectRoot)
-		if err != nil {
+		if err != nil || !anyNumbered(documents) {
 			continue
 		}
 		projects++
@@ -170,4 +170,13 @@ func plural(count int, singular, pluralForm string) string {
 		return singular
 	}
 	return pluralForm
+}
+
+func anyNumbered(documents []docs.Document) bool {
+	for _, document := range documents {
+		if document.Number >= 0 {
+			return true
+		}
+	}
+	return false
 }

@@ -1,6 +1,6 @@
 ---
 type: task
-status: in-progress
+status: done
 ---
 
 # wj: design
@@ -43,7 +43,7 @@ Discovery and reading:
 
 - `wj list [--type t] [--status s,s] [--all]` table of path, type, status, title. `--all` walks sibling repos (`../*/docs`) for a cross-project view.
 - `wj show <ref> [--body]` prints a doc; `--body` strips frontmatter. `<ref>` is an integer, a padded number, a slug fragment or a path; ambiguity is an error listing the candidates.
-- `wj next` lists actionable docs: `in-progress` first, then `todo`, then `blocked` with their reason line. Answers "what should I pick up".
+- `wj next` lists actionable docs: `in-progress`, then `blocked` with their reason line, then `todo`, then `planned`. Answers "what should I pick up".
 - `wj links <ref>` and `wj backlinks <ref>` from the link graph; backlinks include code and agent files.
 - `wj search <term>` runs ripgrep over `docs/` with frontmatter filters applied first.
 - `wj conventions` prints the convention above. `wj schema` prints it as JSON.
@@ -86,14 +86,16 @@ Non-TTY or `--plain`: tab-separated, no colour, no decoration.
 
 ## Plan
 
+All delivered 2026-09-14:
+
 1. Core: discover, parse, `list`, `show`, plain and pretty output.
 2. `lint` and `new`.
 3. `set`, `next`, `links`, `backlinks`, `init` with hook.
 4. `--all`, git columns, `history`, `repad`.
 5. Skill and `setup`.
 
-## Open questions
+## Resolved questions
 
-- `--all` project root: `..` of the current repo, or `$WJ_PROJECTS` with a default of `~/local`?
-- Should `lint` also check links from code into `docs/`, or only docs-to-docs? Code links cost a repo-wide ripgrep.
-- `wj new` for `reference` type: no status, fine, but should it refuse to allocate `000` when one exists?
+- `--all` walks the parent directory of the current repo, or `$WJ_PROJECTS` when set, and skips folders whose `docs/` has no numbered files.
+- `lint` checks docs-to-docs links only. Code links are covered by `backlinks` and rewritten by `repad`.
+- `wj new` never allocates below the current maximum, so a second about-doc cannot happen by accident.

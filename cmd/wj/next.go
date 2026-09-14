@@ -49,7 +49,7 @@ Examples:
   wj -C ~/local/grate next --json  another project's queue, as JSON`,
 		Args: cobra.NoArgs,
 		RunE: func(command *cobra.Command, _ []string) error {
-			documents, err := docs.Load(shared.root)
+			documents, err := loadWithDates(shared.root)
 			if err != nil {
 				return err
 			}

@@ -11,8 +11,8 @@ YAML frontmatter: `type` (reference, review, task) and, for review and task,
 
 ## Workflow
 
-- Session start: `wj next` — what's actionable, in-progress first, then todo,
-  then blocked with its reason.
+- Session start: `wj next` — what's actionable: in-progress, then blocked
+  (with its reason), then todo, then planned.
 - Read a doc: `wj show <ref> --body` (`<ref>` is a number, slug fragment or
   path).
 - Write one up: `wj new task <title>`, then edit the body of the file it
@@ -27,8 +27,8 @@ YAML frontmatter: `type` (reference, review, task) and, for review and task,
 ## Rules
 
 - Never hand-write frontmatter for a new doc — `wj new` allocates the number
-  and writes it. Editing an existing doc's frontmatter goes through
-  `wj set`, not a manual edit.
+  and writes it. Editing an existing doc's frontmatter by hand is fine;
+  `wj set` is the shortcut, and `wj lint` catches mistakes either way.
 - Never renumber files. The number is the document's identity.
 - Unknown `type` or `status` values are allowed; `wj lint` warns, it doesn't
   error.
