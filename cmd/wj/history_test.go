@@ -117,7 +117,7 @@ func TestHistoryJSONCarriesTheStableFields(t *testing.T) {
 	}
 }
 
-func TestListShowsTheModifiedDate(t *testing.T) {
+func TestListShowsTheGitDates(t *testing.T) {
 	root := statusChangeRepository(t)
 
 	out, err := runAt(t, root, "list", "--plain")
@@ -126,11 +126,13 @@ func TestListShowsTheModifiedDate(t *testing.T) {
 	}
 
 	fields := strings.Split(strings.TrimRight(out, "\n"), "\t")
-	if len(fields) != 5 {
-		t.Fatalf("got %d fields, want 5: %q", len(fields), out)
+	if len(fields) != 6 {
+		t.Fatalf("got %d fields, want 6: %q", len(fields), out)
 	}
-	if len(fields[4]) != len("2006-01-02") {
-		t.Errorf("modified field is %q, want an ISO date", fields[4])
+	for _, index := range []int{4, 5} {
+		if len(fields[index]) != len("2006-01-02") {
+			t.Errorf("field %d is %q, want an ISO date", index, fields[index])
+		}
 	}
 }
 

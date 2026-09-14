@@ -41,3 +41,11 @@ func TestSearchPlainFindsTheTerm(t *testing.T) {
 		t.Errorf("search output missing expected match:\n%s", got)
 	}
 }
+
+func TestNextPathsAddsTheDocumentColumn(t *testing.T) {
+	out := runOK(t, "next", "--paths", "--plain")
+
+	if !strings.Contains(out, "docs/01-Sync robustness.md") {
+		t.Errorf("--paths changed the plain rows:\n%s", out)
+	}
+}

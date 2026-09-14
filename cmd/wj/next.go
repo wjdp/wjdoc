@@ -25,6 +25,8 @@ var nextOrder = map[string]int{
 var blockedReasonPattern = regexp.MustCompile(`(?im)^Blocked(?: by)?:.*$`)
 
 func nextCommand(shared *app) *cobra.Command {
+	var showPaths bool
+
 	command := &cobra.Command{
 		Use:   "next",
 		Short: "List the actionable documents",
@@ -37,7 +39,9 @@ For a blocked document, when its body has a line starting with "Blocked:" or
 "Blocked by:" (case-insensitive), that line is appended to the Title column
 as "<title> — <reason>" in every mode, plain and JSON included.
 
-On a terminal: a bold "next up · N" line, then the same table as wj list.
+On a terminal: a bold "next up · N" line, then the same table as wj list, with
+--paths adding the same Document column. The ordering is fixed: wj list's
+--sort, --since and --active do not apply here.
 Piped, or with --plain: the same tab-separated rows as wj list.
 With --json: the same array shape as wj list.
 
@@ -74,10 +78,12 @@ Examples:
 			if mode == render.Pretty {
 				fmt.Fprintln(out, nextTitleStyle.Render(fmt.Sprintf("next up · %d", len(actionable))))
 			}
-			render.List(out, actionable, mode, terminalWidth())
+			render.List(out, actionable, mode, terminalWidth(), showPaths)
 			return nil
 		},
 	}
+
+	command.Flags().BoolVar(&showPaths, "paths", false, "add a column of repo-relative paths")
 	return command
 }
 

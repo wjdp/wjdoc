@@ -68,9 +68,28 @@ Git awareness (all read-only, shelling out to `git`):
 
 ## Output
 
-TTY: colour table, path as a clickable `file://` link, type and status coloured, title column sized to the remaining width and truncated, dropped only when under 12 columns remain. Same palette as the existing script.
-Non-TTY or `--plain`: tab-separated, no colour, no decoration.
-`--json` on `list`, `show`, `next`, `lint`, `links`: stable field names `number, path, type, status, title, modified`.
+TTY: a coloured table, columns in this order.
+
+- `#`, the padded number, bold and an OSC 8 `file://` link to the document. A file that does not follow the numbering shows its filename here instead.
+- `Status`, coloured; empty for references rather than a dash.
+- `Title`, truncated with an ellipsis to whatever width is left, never narrower than 12 cells.
+- `Type`, faint.
+- `Created` and `Modified`, relative ages, right aligned, faint.
+
+`--paths` inserts a `Document` column of the repo-relative path after `#`.
+
+Narrow terminals drop columns before the title is truncated: `Type` first, then `Created`, then `Modified`, each dropped only while `Title` would otherwise have under 30 cells. `#`, `Status`, `Title` and `Document` are never dropped.
+
+Rows with status `done` or `superseded` are entirely faint, and a superseded title is struck through. A document with unreadable frontmatter shows its error in place of the title.
+
+The table closes with one faint line of counts by status: in-progress, blocked, todo, planned, open, done, superseded, then any unknown statuses alphabetically, then `N reference`. Zero counts are omitted. Invalid-frontmatter error lines follow it.
+
+`list` orders by number by default and takes `--sort number|created|modified|status`, `--reverse`, `--since <window>` (Go durations plus `d`, `w`, `mo`, `y` suffixes) and `--active` (drop done and superseded). `next` keeps its own ordering and takes `--paths` only.
+
+Created and modified come from one `git log` over `docs/`, following renames; a pure rename is not a modification.
+
+Non-TTY or `--plain`: tab-separated, no colour, no decoration: `path`, `type`, `status`, `title`, `created`, `modified`, the dates ISO or empty.
+`--json` on `list`, `show`, `next`, `lint`, `links`: stable field names `number, path, type, status, title, created, modified, error`.
 
 ## Agent integration
 
