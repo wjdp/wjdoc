@@ -1,0 +1,41 @@
+name: test
+
+on:
+  push:
+    branches:
+      - "**"
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Build
+        run: go build ./...
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Gofmt check
+        run: |
+          fmt_files="$(gofmt -l .)"
+          if [ -n "$fmt_files" ]; then
+            echo "The following files are not gofmt'd:"
+            echo "$fmt_files"
+            exit 1
+          fi
+
+      - name: Install ripgrep
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ripgrep
+
+      - name: Test
+        run: go test -race ./...
