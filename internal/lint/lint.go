@@ -63,8 +63,12 @@ func Run(root string, documents []docs.Document) []Finding {
 	}
 
 	for _, document := range documents {
-		if !filenamePattern.MatchString(filepath.Base(document.Path)) {
+		name := filepath.Base(document.Path)
+		if !filenamePattern.MatchString(name) {
 			add(document, 0, Error, "filename does not follow NNN-Sentence-case-title.md")
+		}
+		if strings.ContainsAny(name, " \t") {
+			add(document, 0, Error, "filename contains spaces, slugs use hyphens")
 		}
 		if document.Number >= 0 && document.Width != projectWidth {
 			add(document, 0, Warning, "padding width %d differs from the project width of %d", document.Width, projectWidth)
@@ -126,6 +130,9 @@ func frontmatterFindings(document docs.Document) []Finding {
 
 	if document.Status != "" && !contains(docs.KnownStatuses, document.Status) {
 		add(Warning, "unknown status %q", document.Status)
+	}
+	if document.Status == "open" && document.Type != "review" {
+		add(Warning, `status "open" is for reviews, tasks use todo, in-progress or blocked`)
 	}
 	switch document.Type {
 	case "task", "review":

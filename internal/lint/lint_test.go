@@ -40,6 +40,8 @@ func TestRunReportsEveryRule(t *testing.T) {
 		{"duplicate number, the other way", "docs/010-Duplicate-again.md", Error, "number 10 is also used by docs/010-Duplicate.md"},
 		{"lowercase filename", "docs/012-lowercase-title.md", Error, "filename does not follow"},
 		{"unnumbered filename", "docs/README.md", Error, "filename does not follow"},
+		{"spaces in the filename", "docs/013-Space in name.md", Error, "filename contains spaces, slugs use hyphens"},
+		{"open status on a task", "docs/014-Open-task.md", Warning, `status "open" is for reviews, tasks use todo, in-progress or blocked`},
 		{"broken link", "docs/001-Good.md", Error, "link target docs/099-Missing.md does not exist"},
 		{"unknown type", "docs/006-Unknown-type.md", Warning, `unknown type "diagram"`},
 		{"unknown status", "docs/007-Unknown-status.md", Warning, `unknown status "nearly"`},
@@ -112,4 +114,38 @@ func join(findings []Finding) string {
 		lines = append(lines, format(finding))
 	}
 	return strings.Join(lines, "\n")
+}
+
+func TestRunFlagsAPatternAndSpaceProblemTogether(t *testing.T) {
+	var messages []string
+	for _, finding := range runFixture(t) {
+		if finding.Path == "docs/015-both problems.md" {
+			messages = append(messages, finding.Message)
+		}
+	}
+	if len(messages) != 2 {
+		t.Fatalf("got %d findings, want both the pattern and the space error: %v", len(messages), messages)
+	}
+}
+
+func TestRunAcceptsOpenOnAReview(t *testing.T) {
+	documents := []docs.Document{{Path: "docs/001-Review.md", Number: 1, Width: 3, Type: "review", Status: "open"}}
+	for _, finding := range Run(t.TempDir(), documents) {
+		if strings.Contains(finding.Message, `status "open"`) {
+			t.Errorf("open is valid on a review: %s", format(finding))
+		}
+	}
+}
+
+func TestRunFlagsTheFilenamePatternAndSpacesSeparately(t *testing.T) {
+	findings := runFixture(t)
+	count := 0
+	for _, finding := range findings {
+		if finding.Path == "docs/013-Space in name.md" {
+			count++
+		}
+	}
+	if count != 1 {
+		t.Errorf("got %d findings for the spaced filename, want 1:\n%s", count, join(findings))
+	}
 }
