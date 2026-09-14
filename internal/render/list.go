@@ -118,7 +118,9 @@ func listPretty(w io.Writer, list []docs.Document, width int) {
 			withoutStatus++
 		}
 	}
-	fmt.Fprintln(w, faintStyle.Render(fmt.Sprintf("%d docs · %d without a type · %d without a status", len(list), withoutType, withoutStatus)))
+	if withoutType > 0 || withoutStatus > 0 {
+		fmt.Fprintln(w, faintStyle.Render(fmt.Sprintf("%d without a type · %d without a status", withoutType, withoutStatus)))
+	}
 
 	for _, doc := range list {
 		if doc.Err != nil {

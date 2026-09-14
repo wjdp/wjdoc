@@ -47,7 +47,7 @@ Examples:
 			out := command.OutOrStdout()
 			mode := shared.mode()
 			if mode == render.Pretty {
-				fmt.Fprintln(out, listTitleStyle.Render(fmt.Sprintf("%s docs · %d files", filepath.Base(shared.root), len(documents))))
+				fmt.Fprintln(out, listTitleStyle.Render(fmt.Sprintf("%s docs · %d %s", filepath.Base(shared.root), len(documents), plural(len(documents), "file", "files"))))
 			}
 			render.List(out, documents, mode, terminalWidth())
 			return nil
@@ -57,4 +57,11 @@ Examples:
 	command.Flags().StringSliceVar(&types, "type", nil, "keep only these types (comma-separated, repeatable)")
 	command.Flags().StringSliceVar(&statuses, "status", nil, "keep only these statuses (comma-separated, repeatable)")
 	return command
+}
+
+func plural(count int, singular, pluralForm string) string {
+	if count == 1 {
+		return singular
+	}
+	return pluralForm
 }
