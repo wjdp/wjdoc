@@ -102,9 +102,9 @@ Examples:
 		},
 	}
 
-	command.Flags().StringSliceVar(&types, "type", nil, "search only these types (comma-separated, repeatable)")
-	command.Flags().StringSliceVar(&statuses, "status", nil, "search only these statuses (comma-separated, repeatable)")
-	command.Flags().BoolVar(&useRegex, "regex", false, "treat term as a ripgrep regular expression")
+	command.Flags().StringSliceVarP(&types, "type", "t", nil, "search only these types (comma-separated, repeatable)")
+	command.Flags().StringSliceVarP(&statuses, "status", "s", nil, "search only these statuses (comma-separated, repeatable)")
+	command.Flags().BoolVarP(&useRegex, "regex", "E", false, "treat term as a ripgrep regular expression")
 	return command
 }
 

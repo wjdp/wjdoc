@@ -41,18 +41,18 @@ Links between docs are relative markdown links to the filename. Links from code 
 
 Discovery and reading:
 
-- `wj list [--type t] [--status s,s] [--all]` table of path, type, status, title. `--all` walks sibling repos (`../*/docs`) for a cross-project view.
-- `wj show <ref> [--body]` prints a doc; `--body` strips frontmatter. `<ref>` is an integer, a padded number, a slug fragment or a path; ambiguity is an error listing the candidates.
+- `wj list` (alias `ls`) `[-t/--type t] [-s/--status s,s] [--all]` table of path, type, status, title. `--all` walks sibling repos (`../*/docs`) for a cross-project view.
+- `wj show <ref> [--body]` (alias `cat`) prints a doc; `--body` strips frontmatter. `<ref>` is an integer, a padded number, a slug fragment or a path; ambiguity is an error listing the candidates.
 - `wj next` lists actionable docs: `in-progress`, then `blocked` with their reason line, then `todo`, then `planned`. Answers "what should I pick up".
 - `wj links <ref>` and `wj backlinks <ref>` from the link graph; backlinks include code and agent files.
-- `wj search <term>` runs ripgrep over `docs/` with frontmatter filters applied first.
+- `wj search <term> [-t] [-s] [-E/--regex]` runs ripgrep over `docs/` with frontmatter filters applied first.
 - `wj conventions` prints the convention above. `wj schema` prints it as JSON.
 
 Writing:
 
 - `wj new <type> <title>` allocates the next number and writes frontmatter and title. Max number is taken over every local and remote branch via `git ls-tree`, so parallel branches do not collide.
 - `wj set <ref> <key> <value>` edits one frontmatter key in place without touching the body. `wj set <ref> status done` is the common case.
-- `wj repad --width N` as above.
+- `wj repad --width N [-n/--dry-run]` as above.
 - `wj init` creates `docs/` and the about-doc, appends one line to AGENTS.md or CLAUDE.md if present, and installs the pre-commit lint hook. Idempotent, safe on existing repos.
 
 Checking:
@@ -84,7 +84,7 @@ Rows with status `done` or `superseded` are entirely faint, and a superseded tit
 
 The table closes with one faint line of counts by status: in-progress, blocked, todo, planned, open, done, superseded, then any unknown statuses alphabetically, then `N reference`. Zero counts are omitted. Invalid-frontmatter error lines follow it.
 
-`list` orders by number by default and takes `--sort number|created|modified|status`, `--reverse`, `--since <window>` (Go durations plus `d`, `w`, `mo`, `y` suffixes) and `--active` (drop done and superseded). `next` keeps its own ordering and takes `--paths` only.
+`list` orders by number by default and takes `--sort number|created|modified|status`, `--reverse`/`-r`, `--since <window>` (Go durations plus `d`, `w`, `mo`, `y` suffixes) and `--active`/`-a` (drop done and superseded). `next` keeps its own ordering and takes `--paths` only.
 
 Created and modified come from one `git log` over `docs/`, following renames; a pure rename is not a modification.
 

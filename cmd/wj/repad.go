@@ -70,7 +70,7 @@ Examples:
 	}
 
 	command.Flags().IntVar(&width, "width", 0, "zero-padding `width` in digits")
-	command.Flags().BoolVar(&dryRun, "dry-run", false, "print the plan without changing anything")
+	command.Flags().BoolVarP(&dryRun, "dry-run", "n", false, "print the plan without changing anything")
 	command.MarkFlagRequired("width")
 	return command
 }

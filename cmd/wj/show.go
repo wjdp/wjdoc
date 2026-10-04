@@ -10,8 +10,9 @@ func showCommand(shared *app) *cobra.Command {
 	var bodyOnly bool
 
 	command := &cobra.Command{
-		Use:   "show <ref>",
-		Short: "Print one document",
+		Use:     "show <ref>",
+		Aliases: []string{"cat"},
+		Short:   "Print one document",
 		Long: `Print one document from docs/.
 
 <ref> is an integer (7), a padded number (007), a filename or path, or a

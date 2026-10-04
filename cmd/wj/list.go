@@ -29,8 +29,9 @@ func listCommand(shared *app) *cobra.Command {
 	var sortBy, since string
 
 	command := &cobra.Command{
-		Use:   "list",
-		Short: "List the documents in docs/",
+		Use:     "list",
+		Aliases: []string{"ls"},
+		Short:   "List the documents in docs/",
 		Long: `List every document in docs/, optionally filtered by frontmatter type or status.
 
 Filters take a comma-separated list, may be repeated, and match case-insensitively.
@@ -106,13 +107,13 @@ Examples:
 		},
 	}
 
-	command.Flags().StringSliceVar(&types, "type", nil, "keep only these types (comma-separated, repeatable)")
-	command.Flags().StringSliceVar(&statuses, "status", nil, "keep only these statuses (comma-separated, repeatable)")
+	command.Flags().StringSliceVarP(&types, "type", "t", nil, "keep only these types (comma-separated, repeatable)")
+	command.Flags().StringSliceVarP(&statuses, "status", "s", nil, "keep only these statuses (comma-separated, repeatable)")
 	command.Flags().BoolVar(&all, "all", false, "list every sibling project, not just this one")
 	command.Flags().StringVar(&sortBy, "sort", sortByNumber, "order by `key`: number, created, modified or status")
-	command.Flags().BoolVar(&reverse, "reverse", false, "reverse the order")
+	command.Flags().BoolVarP(&reverse, "reverse", "r", false, "reverse the order")
 	command.Flags().StringVar(&since, "since", "", "keep documents modified within a `window`, e.g. 3d, 2w, 6mo, 72h")
-	command.Flags().BoolVar(&active, "active", false, "drop the done and superseded documents")
+	command.Flags().BoolVarP(&active, "active", "a", false, "drop the done and superseded documents")
 	command.Flags().BoolVar(&showPaths, "paths", false, "add a column of repo-relative paths")
 	return command
 }
