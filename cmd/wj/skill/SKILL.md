@@ -6,8 +6,8 @@ description: Working in a repo with a docs/ folder managed by wj, or asked about
 # wj docs/
 
 `docs/` holds numbered markdown documents (`NNN-Sentence-case-title.md`) with
-YAML frontmatter: `type` (reference, review, task) and, for review and task,
-`status`. `wj` is the CLI that reads, writes and checks them.
+YAML frontmatter: `type` (reference, review, task, bug) and, for all but
+reference, `status`. `wj` is the CLI that reads, writes and checks them.
 
 ## Workflow
 
@@ -15,8 +15,9 @@ YAML frontmatter: `type` (reference, review, task) and, for review and task,
   (with its reason), then todo, then planned.
 - Read a doc: `wj show <ref> --body` (`<ref>` is a number, slug fragment or
   path).
-- Write one up: `wj new task <title>`, then edit the body of the file it
-  creates directly.
+- Write one up: `wj new task <title>` for something new, `wj new bug <title>`
+  for a fix to existing behaviour, then edit the body of the file it creates
+  directly.
 - Pick something up: `wj set <ref> status in-progress`.
 - Finish it: `wj set <ref> status done`.
 - Before committing: `wj lint`.

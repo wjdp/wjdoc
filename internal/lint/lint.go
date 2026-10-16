@@ -132,17 +132,13 @@ func frontmatterFindings(document docs.Document) []Finding {
 		add(Warning, "unknown status %q", document.Status)
 	}
 	if document.Status == "open" && document.Type != "review" {
-		add(Warning, `status "open" is for reviews, tasks use todo, in-progress or blocked`)
+		add(Warning, `status "open" is for reviews, use todo, in-progress or blocked`)
 	}
-	switch document.Type {
-	case "task", "review":
-		if document.Status == "" {
-			add(Error, "status is missing, required for a %s", document.Type)
-		}
-	case "reference":
-		if document.Status != "" {
-			add(Warning, "status is not used on a reference")
-		}
+	switch {
+	case docs.StatusRequired(document.Type) && document.Status == "":
+		add(Error, "status is missing, required for a %s", document.Type)
+	case !docs.StatusRequired(document.Type) && document.Status != "":
+		add(Warning, "status is not used on a %s", document.Type)
 	}
 	return findings
 }

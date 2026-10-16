@@ -37,7 +37,7 @@ func lintCommand(shared *app) *cobra.Command {
 		Long: `Check every document in docs/ against the convention and report what is wrong.
 
 Errors: missing or unparseable frontmatter, missing type, missing status on a
-task or review, two documents sharing a number, a filename that is not
+task, bug or review, two documents sharing a number, a filename that is not
 NNN-Sentence-case-title.md, and a relative link whose target does not exist.
 Warnings: an unknown type or status, a status on a reference, a padding width
 that differs from the rest of the project, and a link to a superseded document.

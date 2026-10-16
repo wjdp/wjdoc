@@ -28,8 +28,8 @@ Filenames `NNN-Sentence-case-title.md` in `docs/`.
 
 Frontmatter, YAML between `---` fences, first thing in the file:
 
-- `type`, required. Known: `reference` (evergreen), `review` (point-in-time assessment), `task` (unit of work). Unknown values lint as a warning, not an error, so the vocabulary can grow.
-- `status`, required for `task` and `review`, absent for `reference`. Known: `todo` (immediate), `planned` (longer term), `in-progress`, `blocked`, `open` (reviews only), `done`, `superseded`. Unknown values warn.
+- `type`, required. Known: `reference` (evergreen), `review` (point-in-time assessment), `task` (unit of work adding something new), `bug` (unit of work fixing existing behaviour). Unknown values lint as a warning, not an error, so the vocabulary can grow.
+- `status`, required for `task`, `bug` and `review`, absent for `reference`. Known: `todo` (immediate), `planned` (longer term), `in-progress`, `blocked`, `open` (reviews only), `done`, `superseded`. Unknown values warn.
 - No `created`, `updated`, `author` fields: git already knows.
 - Reviews state their assessed date and commit in the body. Not a frontmatter field yet; revisit if querying it becomes wanted.
 

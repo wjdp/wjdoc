@@ -85,6 +85,7 @@ func TestCreateWritesFrontmatterAndHeading(t *testing.T) {
 		{"review", "Loader review", "docs/08-Loader-review.md", "---\ntype: review\nstatus: open\n---\n\n# Loader review\n"},
 		{"reference", "About these docs", "docs/09-About-these-docs.md", "---\ntype: reference\n---\n\n# About these docs\n"},
 		{"note", "Unknown type", "docs/10-Unknown-type.md", "---\ntype: note\nstatus: todo\n---\n\n# Unknown type\n"},
+		{"bug", "Fix the loader", "docs/11-Fix-the-loader.md", "---\ntype: bug\nstatus: todo\n---\n\n# Fix the loader\n"},
 	}
 
 	for index, testCase := range cases {

@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-func TestSchemaIsJSONWithThreeTypes(t *testing.T) {
+func TestSchemaIsJSONWithFourTypes(t *testing.T) {
 	got := runOK(t, "schema")
 
 	var parsed struct {
@@ -18,8 +18,8 @@ func TestSchemaIsJSONWithThreeTypes(t *testing.T) {
 	if err := json.Unmarshal([]byte(got), &parsed); err != nil {
 		t.Fatalf("unmarshal: %v\n%s", err, got)
 	}
-	if len(parsed.Types) != 3 {
-		t.Fatalf("got %d types, want 3: %v", len(parsed.Types), parsed.Types)
+	if len(parsed.Types) != 4 {
+		t.Fatalf("got %d types, want 4: %v", len(parsed.Types), parsed.Types)
 	}
 }
 

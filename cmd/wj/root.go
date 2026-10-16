@@ -28,7 +28,7 @@ func rootCommand() *cobra.Command {
 	root := &cobra.Command{
 		Use:   "wj",
 		Short: "Read, query and check the docs/ folder of a project",
-		Long: `wj manages the numbered docs/ convention: reference, review and task documents with YAML frontmatter.
+		Long: `wj manages the numbered docs/ convention: reference, review, task and bug documents with YAML frontmatter.
 Run ` + "`wj conventions`" + ` for the rules.
 
 The project root is the nearest directory at or above the working directory that

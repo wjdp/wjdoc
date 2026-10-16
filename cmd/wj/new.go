@@ -20,9 +20,9 @@ func newCommand(shared *app) *cobra.Command {
 		Short: "Create the next numbered document",
 		Long: `Create a document in docs/ with the next free number.
 
-<type> is reference, review or task; an unrecognised type is allowed and lints
-as a warning. The remaining arguments are the title, joined with spaces, and
-become both the slug and the ` + "`# `" + ` heading. Tasks and reviews get a status
+<type> is reference, review, task or bug; an unrecognised type is allowed and
+lints as a warning. The remaining arguments are the title, joined with spaces,
+and become both the slug and the ` + "`# `" + ` heading. Tasks, bugs and reviews get a status
 (todo, and open for reviews); references get none.
 
 The number is one past the highest in use, counted over docs/ on every local and
@@ -32,6 +32,7 @@ at wj repad.
 
 Examples:
   wj new task Ship the loader      writes docs/007-Ship-the-loader.md
+  wj new bug List crashes on empty docs
   wj new reference Prisma to Drizzle
   wj new task Try it out --json    prints {"number":7,"path":"docs/..."}`,
 		Args: cobra.MinimumNArgs(2),

@@ -19,8 +19,9 @@ const conventions = `Filenames
 Frontmatter
   YAML between --- fences, the first thing in the file.
   type    required. reference (evergreen), review (point-in-time assessment),
-          task (unit of work).
-  status  required for task and review, absent for reference. todo
+          task (unit of work adding something new), bug (unit of work fixing
+          existing behaviour).
+  status  required for task, bug and review, absent for reference. todo
           (immediate), planned (longer term), in-progress, blocked, open
           (reviews only), done, superseded.
   Unknown type or status values warn, they do not error: the vocabulary grows.

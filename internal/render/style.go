@@ -9,6 +9,7 @@ var (
 		"reference": lipgloss.NewStyle().Foreground(lipgloss.Color("14")),
 		"review":    lipgloss.NewStyle().Foreground(lipgloss.Color("13")),
 		"task":      lipgloss.NewStyle().Foreground(lipgloss.Color("12")),
+		"bug":       lipgloss.NewStyle().Foreground(lipgloss.Color("208")),
 	}
 	statusStyles = map[string]lipgloss.Style{
 		"todo":        lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("9")),

@@ -38,39 +38,35 @@ type schemaDoc struct {
 	UnknownValues string            `json:"unknown_values"`
 }
 
-var typeDescriptions = map[string]struct {
-	description    string
-	statusRequired bool
-}{
-	"reference": {"evergreen", false},
-	"review":    {"point-in-time assessment", true},
-	"task":      {"unit of work", true},
+// statusOnlyFor narrows a status to some types; every other status applies to
+// all the types that require one.
+var statusOnlyFor = map[string][]string{
+	"open": {"review"},
 }
 
-var statusDescriptions = map[string]struct {
-	description string
-	types       []string
-}{
-	"todo":        {"immediate", []string{"task", "review"}},
-	"planned":     {"longer term", []string{"task", "review"}},
-	"in-progress": {"in progress", []string{"task", "review"}},
-	"blocked":     {"blocked", []string{"task", "review"}},
-	"open":        {"open reviews only", []string{"review"}},
-	"done":        {"done", []string{"task", "review"}},
-	"superseded":  {"superseded", []string{"task", "review"}},
+var statusDescriptions = map[string]string{
+	"todo":        "immediate",
+	"planned":     "longer term",
+	"in-progress": "in progress",
+	"blocked":     "blocked",
+	"open":        "open reviews only",
+	"done":        "done",
+	"superseded":  "superseded",
 }
 
 func buildSchema() schemaDoc {
-	types := make([]schemaType, 0, len(docs.KnownTypes))
-	for _, name := range docs.KnownTypes {
-		info := typeDescriptions[name]
-		types = append(types, schemaType{Name: name, Description: info.description, StatusRequired: info.statusRequired})
+	types := make([]schemaType, 0, len(docs.Types))
+	for _, docType := range docs.Types {
+		types = append(types, schemaType{Name: docType.Name, Description: docType.Description, StatusRequired: docType.StatusRequired})
 	}
 
 	statuses := make([]schemaStatus, 0, len(docs.KnownStatuses))
 	for _, name := range docs.KnownStatuses {
-		info := statusDescriptions[name]
-		statuses = append(statuses, schemaStatus{Name: name, Description: info.description, Types: info.types})
+		appliesTo, narrowed := statusOnlyFor[name]
+		if !narrowed {
+			appliesTo = docs.StatusTypes()
+		}
+		statuses = append(statuses, schemaStatus{Name: name, Description: statusDescriptions[name], Types: appliesTo})
 	}
 
 	return schemaDoc{

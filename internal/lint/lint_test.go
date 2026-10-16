@@ -41,7 +41,8 @@ func TestRunReportsEveryRule(t *testing.T) {
 		{"lowercase filename", "docs/012-lowercase-title.md", Error, "filename does not follow"},
 		{"unnumbered filename", "docs/README.md", Error, "filename does not follow"},
 		{"spaces in the filename", "docs/013-Space in name.md", Error, "filename contains spaces, slugs use hyphens"},
-		{"open status on a task", "docs/014-Open-task.md", Warning, `status "open" is for reviews, tasks use todo, in-progress or blocked`},
+		{"open status on a task", "docs/014-Open-task.md", Warning, `status "open" is for reviews, use todo, in-progress or blocked`},
+		{"missing status on a bug", "docs/016-Bug-without-status.md", Error, "status is missing, required for a bug"},
 		{"broken link", "docs/001-Good.md", Error, "link target docs/099-Missing.md does not exist"},
 		{"unknown type", "docs/006-Unknown-type.md", Warning, `unknown type "diagram"`},
 		{"unknown status", "docs/007-Unknown-status.md", Warning, `unknown status "nearly"`},
@@ -64,7 +65,7 @@ func TestRunReportsEveryRule(t *testing.T) {
 
 func TestRunIsSilentOnConformingDocuments(t *testing.T) {
 	for _, finding := range runFixture(t) {
-		if finding.Path == "docs/000-About.md" || finding.Path == "docs/003-Superseded.md" {
+		if finding.Path == "docs/000-About.md" || finding.Path == "docs/003-Superseded.md" || finding.Path == "docs/017-Good-bug.md" {
 			t.Errorf("unexpected finding: %s", format(finding))
 		}
 	}

@@ -3,7 +3,7 @@
 Dumb as bricks markdown docs in repo for humans and agents alike.
 
 `wj` is the CLI. It manages the numbered `docs/` convention used across
-projects: reference, review and task documents with YAML frontmatter. It is
+projects: reference, review, task and bug documents with YAML frontmatter. It is
 the single place the convention is defined, generated and checked. Humans and
 agents both use it, and agents discover it by running it rather than reading
 prose.

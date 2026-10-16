@@ -71,6 +71,7 @@ modified and error.
 Examples:
   wj list                              every document
   wj list --type task --status todo    just the todo tasks
+  wj list -t task,bug                  all the work, new and fixes
   wj list --status todo,in-progress    either status
   wj list --active --sort modified     what is live, most recently touched first
   wj list --since 2w                   touched in the last fortnight
