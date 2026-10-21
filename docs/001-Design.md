@@ -16,7 +16,7 @@ status: done
 - Agents write doc files directly and rely on `wj lint`. No write-through-tool requirement.
 - Lint runs on commit, never on edit.
 - Non-TTY output is plain and stable. TTY output is pretty.
-- No TUI.
+- No TUI. `wj web` is the one interactive surface: a local viewer and editor, kept minimal (list, filter, read, edit, set status). No creating docs, no live preview.
 
 ## Convention
 
