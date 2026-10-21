@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>wj</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<aside id="sidebar">
+  <header>
+    <h1 id="project">wj</h1>
+    <input id="search" type="search" placeholder="Filter by title or number  /" autocomplete="off">
+    <div class="filters">
+      <select id="status-filter" aria-label="Status"></select>
+      <select id="type-filter" aria-label="Type"></select>
+    </div>
+  </header>
+  <ol id="list"></ol>
+  <footer id="count"></footer>
+</aside>
+<main id="main">
+  <div id="empty" class="placeholder">Pick a document</div>
+  <section id="document" hidden>
+    <header id="doc-header">
+      <div class="meta">
+        <span id="doc-path"></span>
+        <span id="doc-type" class="type"></span>
+        <select id="doc-status" aria-label="Status"></select>
+        <span id="doc-dates"></span>
+      </div>
+      <div class="actions">
+        <span id="message" role="status"></span>
+        <button id="toggle" type="button" title="e to edit, Esc to view">Edit</button>
+        <button id="save" type="button" title="Ctrl+S" hidden>Save</button>
+      </div>
+    </header>
+    <p id="doc-error" class="error" hidden></p>
+    <article id="view" class="markdown"></article>
+    <textarea id="editor" spellcheck="false" hidden></textarea>
+  </section>
+</main>
+<script src="/app.js"></script>
+</body>
+</html>
