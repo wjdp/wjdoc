@@ -57,7 +57,7 @@ Writing:
 
 Checking:
 
-- `wj lint [paths]` exit 1 on errors, 0 with warnings. Errors: missing or unparseable frontmatter, missing `type`, missing `status` where required, duplicate number, broken relative link, filename not matching the pattern (including a lowercase first letter after the number). Warnings: unknown type or status, `status` on a reference, mixed padding widths, link to a superseded doc.
+- `wj lint [paths]` exit 1 on errors, 0 with warnings. Errors: missing or unparseable frontmatter, missing `type`, missing `status` where required, duplicate number, broken relative link, filename not matching the pattern (including a lowercase first letter after the number). Warnings: unknown type or status, `status` on a reference, mixed padding widths, link to a superseded doc from an active one (inactive docs are history, so their links stay as written).
 - Output format on non-TTY is `path:line: level: message`, one per line, so agents and editors can parse it.
 
 Git awareness (all read-only, shelling out to `git`):

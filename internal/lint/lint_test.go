@@ -65,7 +65,7 @@ func TestRunReportsEveryRule(t *testing.T) {
 
 func TestRunIsSilentOnConformingDocuments(t *testing.T) {
 	for _, finding := range runFixture(t) {
-		if finding.Path == "docs/000-About.md" || finding.Path == "docs/003-Superseded.md" || finding.Path == "docs/017-Good-bug.md" {
+		if finding.Path == "docs/000-About.md" || finding.Path == "docs/003-Superseded.md" || finding.Path == "docs/017-Good-bug.md" || finding.Path == "docs/018-Done-task.md" {
 			t.Errorf("unexpected finding: %s", format(finding))
 		}
 	}

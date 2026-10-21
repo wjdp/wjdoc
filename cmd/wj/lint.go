@@ -40,7 +40,9 @@ Errors: missing or unparseable frontmatter, missing type, missing status on a
 task, bug or review, two documents sharing a number, a filename that is not
 NNN-Sentence-case-title.md, and a relative link whose target does not exist.
 Warnings: an unknown type or status, a status on a reference, a padding width
-that differs from the rest of the project, and a link to a superseded document.
+that differs from the rest of the project, and a link to a superseded document
+from one still in play (a reference, or a task, bug or review that is not
+shelved, done, rejected or superseded), since an inactive doc is history.
 
 Exit status is 1 when there is at least one error and 0 otherwise, so warnings
 never fail a run. Nothing is printed when a run is clean and output is piped.

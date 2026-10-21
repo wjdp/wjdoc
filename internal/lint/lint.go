@@ -156,7 +156,7 @@ func linkFindings(root string, byPath map[string]docs.Document, document docs.Do
 			})
 			continue
 		}
-		if linked, known := byPath[target]; known && linked.Status == "superseded" {
+		if linked, known := byPath[target]; known && linked.Status == "superseded" && !docs.Inactive(document.Status) {
 			findings = append(findings, Finding{
 				Path:    document.Path,
 				Line:    link.Line,
