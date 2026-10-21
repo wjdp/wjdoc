@@ -32,8 +32,8 @@ func nextCommand(shared *app) *cobra.Command {
 		Short: "List the actionable documents",
 		Long: `List the documents worth picking up next: status in-progress, then
 blocked, then todo, then planned, ordered by number within each group.
-Everything else (done, superseded, open reviews, references, and unknown
-statuses) is excluded.
+Everything else (open reviews, shelved, done, rejected, superseded,
+references, and unknown statuses) is excluded.
 
 For a blocked document, when its body has a line starting with "Blocked:" or
 "Blocked by:" (case-insensitive), that line is appended to the Title column

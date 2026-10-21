@@ -41,7 +41,7 @@ func TestRunReportsEveryRule(t *testing.T) {
 		{"lowercase filename", "docs/012-lowercase-title.md", Error, "filename does not follow"},
 		{"unnumbered filename", "docs/README.md", Error, "filename does not follow"},
 		{"spaces in the filename", "docs/013-Space in name.md", Error, "filename contains spaces, slugs use hyphens"},
-		{"open status on a task", "docs/014-Open-task.md", Warning, `status "open" is for reviews, use todo, in-progress or blocked`},
+		{"open status on a task", "docs/014-Open-task.md", Warning, `status "open" is only for review`},
 		{"missing status on a bug", "docs/016-Bug-without-status.md", Error, "status is missing, required for a bug"},
 		{"broken link", "docs/001-Good.md", Error, "link target docs/099-Missing.md does not exist"},
 		{"unknown type", "docs/006-Unknown-type.md", Warning, `unknown type "diagram"`},
@@ -135,6 +135,22 @@ func TestRunAcceptsOpenOnAReview(t *testing.T) {
 		if strings.Contains(finding.Message, `status "open"`) {
 			t.Errorf("open is valid on a review: %s", format(finding))
 		}
+	}
+}
+
+func TestRunNarrowsShelvedAndRejectedToTasksAndBugs(t *testing.T) {
+	documents := []docs.Document{
+		{Path: "docs/001-Task.md", Number: 1, Width: 3, Type: "task", Status: "shelved"},
+		{Path: "docs/002-Bug.md", Number: 2, Width: 3, Type: "bug", Status: "rejected"},
+		{Path: "docs/003-Review.md", Number: 3, Width: 3, Type: "review", Status: "shelved"},
+	}
+	var flagged []string
+	for _, finding := range Run(t.TempDir(), documents) {
+		flagged = append(flagged, finding.Path+": "+finding.Message)
+	}
+	want := []string{`docs/003-Review.md: status "shelved" is only for task and bug`}
+	if strings.Join(flagged, "\n") != strings.Join(want, "\n") {
+		t.Errorf("got %q, want %q", flagged, want)
 	}
 }
 

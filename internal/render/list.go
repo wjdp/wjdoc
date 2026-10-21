@@ -241,7 +241,7 @@ func padded(text string, width int, col column) string {
 // columns.
 func styledCell(doc docs.Document, col column, width int) string {
 	text := truncate(plainCell(doc, col), width)
-	faded := doc.Status == "done" || doc.Status == "superseded"
+	faded := docs.Inactive(doc.Status)
 
 	var styled string
 	switch col {
@@ -295,7 +295,7 @@ func styleFor(value string, styles map[string]lipgloss.Style) lipgloss.Style {
 
 // countsOrder is the order statuses are summarised in, matching the order
 // wj next considers them actionable, then the terminal statuses.
-var countsOrder = []string{"in-progress", "blocked", "todo", "planned", "open", "done", "superseded"}
+var countsOrder = []string{"in-progress", "blocked", "todo", "planned", "open", "shelved", "done", "rejected", "superseded"}
 
 // countsLine summarises the listing by status: the known statuses in
 // convention order, then any unknown ones alphabetically, then the documents

@@ -23,7 +23,8 @@ Frontmatter
           existing behaviour).
   status  required for task, bug and review, absent for reference. todo
           (immediate), planned (longer term), in-progress, blocked, open
-          (reviews only), done, superseded.
+          (reviews only), shelved (parked indefinitely, tasks and bugs only),
+          done, rejected (decided against, tasks and bugs only), superseded.
   Unknown type or status values warn, they do not error: the vocabulary grows.
   No created, updated or author fields: git already knows.
 

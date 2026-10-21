@@ -29,7 +29,7 @@ Filenames `NNN-Sentence-case-title.md` in `docs/`.
 Frontmatter, YAML between `---` fences, first thing in the file:
 
 - `type`, required. Known: `reference` (evergreen), `review` (point-in-time assessment), `task` (unit of work adding something new), `bug` (unit of work fixing existing behaviour). Unknown values lint as a warning, not an error, so the vocabulary can grow.
-- `status`, required for `task`, `bug` and `review`, absent for `reference`. Known: `todo` (immediate), `planned` (longer term), `in-progress`, `blocked`, `open` (reviews only), `done`, `superseded`. Unknown values warn.
+- `status`, required for `task`, `bug` and `review`, absent for `reference`. Known: `todo` (immediate), `planned` (longer term), `in-progress`, `blocked`, `open` (reviews only), `shelved` (parked indefinitely, tasks and bugs only), `done`, `rejected` (decided against, tasks and bugs only), `superseded`. Unknown values warn.
 - No `created`, `updated`, `author` fields: git already knows.
 - Reviews state their assessed date and commit in the body. Not a frontmatter field yet; revisit if querying it becomes wanted.
 
@@ -80,11 +80,11 @@ TTY: a coloured table, columns in this order.
 
 Narrow terminals drop columns before the title is truncated: `Type` first, then `Created`, then `Modified`, each dropped only while `Title` would otherwise have under 30 cells. `#`, `Status`, `Title` and `Document` are never dropped.
 
-Rows with status `done` or `superseded` are entirely faint, and a superseded title is struck through. A document with unreadable frontmatter shows its error in place of the title.
+Rows with status `shelved`, `done`, `rejected` or `superseded` are entirely faint, and a superseded title is struck through. A document with unreadable frontmatter shows its error in place of the title.
 
-The table closes with one faint line of counts by status: in-progress, blocked, todo, planned, open, done, superseded, then any unknown statuses alphabetically, then `N reference`. Zero counts are omitted. Invalid-frontmatter error lines follow it.
+The table closes with one faint line of counts by status: in-progress, blocked, todo, planned, open, shelved, done, rejected, superseded, then any unknown statuses alphabetically, then `N reference`. Zero counts are omitted. Invalid-frontmatter error lines follow it.
 
-`list` orders by number by default and takes `--sort number|created|modified|status`, `--reverse`/`-r`, `--since <window>` (Go durations plus `d`, `w`, `mo`, `y` suffixes) and `--active`/`-a` (drop done and superseded). `next` keeps its own ordering and takes `--paths` only.
+`list` orders by number by default and takes `--sort number|created|modified|status`, `--reverse`/`-r`, `--since <window>` (Go durations plus `d`, `w`, `mo`, `y` suffixes) and `--active`/`-a` (drop shelved, done, rejected and superseded). `next` keeps its own ordering and takes `--paths` only.
 
 Created and modified come from one `git log` over `docs/`, following renames; a pure rename is not a modification.
 

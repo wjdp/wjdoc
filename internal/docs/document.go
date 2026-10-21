@@ -53,8 +53,34 @@ var (
 		{"bug", "unit of work fixing existing behaviour", true},
 	}
 	KnownTypes    = typeNames(Types)
-	KnownStatuses = []string{"todo", "planned", "in-progress", "blocked", "open", "done", "superseded"}
+	KnownStatuses = []string{"todo", "planned", "in-progress", "blocked", "open", "shelved", "done", "rejected", "superseded"}
+
+	// StatusOnlyFor narrows a status to some types; every other known status
+	// applies to all the types that require one.
+	StatusOnlyFor = map[string][]string{
+		"open":     {"review"},
+		"shelved":  {"task", "bug"},
+		"rejected": {"task", "bug"},
+	}
 )
+
+// Inactive reports whether a status takes a document out of play: finished,
+// replaced, rejected or shelved.
+func Inactive(status string) bool {
+	switch status {
+	case "shelved", "done", "rejected", "superseded":
+		return true
+	}
+	return false
+}
+
+// StatusTypesFor names the types a known status applies to.
+func StatusTypesFor(status string) []string {
+	if types, narrowed := StatusOnlyFor[status]; narrowed {
+		return types
+	}
+	return StatusTypes()
+}
 
 // StatusTypes names the known types that require a status.
 func StatusTypes() []string {

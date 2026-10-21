@@ -131,8 +131,8 @@ func frontmatterFindings(document docs.Document) []Finding {
 	if document.Status != "" && !contains(docs.KnownStatuses, document.Status) {
 		add(Warning, "unknown status %q", document.Status)
 	}
-	if document.Status == "open" && document.Type != "review" {
-		add(Warning, `status "open" is for reviews, use todo, in-progress or blocked`)
+	if types, narrowed := docs.StatusOnlyFor[document.Status]; narrowed && !contains(types, document.Type) {
+		add(Warning, "status %q is only for %s", document.Status, strings.Join(types, " and "))
 	}
 	switch {
 	case docs.StatusRequired(document.Type) && document.Status == "":

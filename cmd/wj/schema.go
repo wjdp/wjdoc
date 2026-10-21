@@ -38,19 +38,15 @@ type schemaDoc struct {
 	UnknownValues string            `json:"unknown_values"`
 }
 
-// statusOnlyFor narrows a status to some types; every other status applies to
-// all the types that require one.
-var statusOnlyFor = map[string][]string{
-	"open": {"review"},
-}
-
 var statusDescriptions = map[string]string{
 	"todo":        "immediate",
 	"planned":     "longer term",
 	"in-progress": "in progress",
 	"blocked":     "blocked",
 	"open":        "open reviews only",
+	"shelved":     "parked indefinitely, tasks and bugs only",
 	"done":        "done",
+	"rejected":    "decided against, tasks and bugs only",
 	"superseded":  "superseded",
 }
 
@@ -62,11 +58,7 @@ func buildSchema() schemaDoc {
 
 	statuses := make([]schemaStatus, 0, len(docs.KnownStatuses))
 	for _, name := range docs.KnownStatuses {
-		appliesTo, narrowed := statusOnlyFor[name]
-		if !narrowed {
-			appliesTo = docs.StatusTypes()
-		}
-		statuses = append(statuses, schemaStatus{Name: name, Description: statusDescriptions[name], Types: appliesTo})
+		statuses = append(statuses, schemaStatus{Name: name, Description: statusDescriptions[name], Types: docs.StatusTypesFor(name)})
 	}
 
 	return schemaDoc{

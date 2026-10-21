@@ -17,7 +17,9 @@ var (
 		"in-progress": lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("11")),
 		"blocked":     lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("9")),
 		"open":        lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("11")),
+		"shelved":     lipgloss.NewStyle().Faint(true),
 		"done":        lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("10")),
+		"rejected":    lipgloss.NewStyle().Faint(true),
 		"superseded":  lipgloss.NewStyle().Faint(true),
 	}
 	missingStyle = lipgloss.NewStyle().Faint(true)

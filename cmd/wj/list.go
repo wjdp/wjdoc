@@ -48,8 +48,8 @@ modified put the newest first; status follows the order of the footer counts and
 then the number. --reverse flips whichever order is in force.
 
 --since keeps documents modified within a window, given as a Go duration (72h)
-or with a d, w, mo or y suffix (2w). --active drops the done and superseded
-documents. Both compose with --type, --status and --all.
+or with a d, w, mo or y suffix (2w). --active drops the shelved, done, rejected
+and superseded documents. Both compose with --type, --status and --all.
 
 --all lists every sibling project instead of just this one: each directory with a
 docs/ subdirectory in the parent of the project root, or in $` + projectsEnv + ` when that is
@@ -60,8 +60,8 @@ On a terminal: a bold "<project> docs · N files" line, then a coloured table of
 number, status, title, type, created and modified, and a faint line of counts by
 status. The number links to the file; unnumbered files show their filename there.
 Narrow terminals drop Type, then Created, then Modified to keep the title
-readable, and the title is truncated to whatever space is left. Done and
-superseded rows are faint. --paths adds a Document column of the repo-relative
+readable, and the title is truncated to whatever space is left. Shelved, done,
+rejected and superseded rows are faint. --paths adds a Document column of the repo-relative
 path, which is never dropped.
 Piped, or with --plain: one line per document, tab-separated, no header and no
 colour: path, type, status, title, created, modified. Absent fields are empty.
@@ -114,7 +114,7 @@ Examples:
 	command.Flags().StringVar(&sortBy, "sort", sortByNumber, "order by `key`: number, created, modified or status")
 	command.Flags().BoolVarP(&reverse, "reverse", "r", false, "reverse the order")
 	command.Flags().StringVar(&since, "since", "", "keep documents modified within a `window`, e.g. 3d, 2w, 6mo, 72h")
-	command.Flags().BoolVarP(&active, "active", "a", false, "drop the done and superseded documents")
+	command.Flags().BoolVarP(&active, "active", "a", false, "drop the shelved, done, rejected and superseded documents")
 	command.Flags().BoolVar(&showPaths, "paths", false, "add a column of repo-relative paths")
 	return command
 }
@@ -241,8 +241,10 @@ var statusOrder = map[string]int{
 	"todo":        2,
 	"planned":     3,
 	"open":        4,
-	"done":        5,
-	"superseded":  6,
+	"shelved":     5,
+	"done":        6,
+	"rejected":    7,
+	"superseded":  8,
 }
 
 func statusRank(status string) int {
@@ -296,7 +298,7 @@ func sortDocuments(documents []docs.Document, key string, reverse bool) error {
 func activeOnly(documents []docs.Document) []docs.Document {
 	kept := make([]docs.Document, 0, len(documents))
 	for _, document := range documents {
-		if document.Status == "done" || document.Status == "superseded" {
+		if docs.Inactive(document.Status) {
 			continue
 		}
 		kept = append(kept, document)
