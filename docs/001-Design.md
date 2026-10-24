@@ -78,7 +78,7 @@ TTY: a coloured table, columns in this order.
 - `Status`, coloured; empty for references rather than a dash.
 - `Pri`, coloured, only when a listed document has a priority.
 - `Title`, truncated with an ellipsis to whatever width is left, never narrower than 12 cells.
-- `Type`, faint.
+- `Type`, coloured as in `wj web` (reference cyan, review magenta, task blue, bug orange); unknown types faint.
 - `Created` and `Modified`, relative ages, right aligned, faint.
 
 `--paths` inserts a `Document` column of the repo-relative path after `#`. `--tags` inserts a `Tags` column after `Title`.

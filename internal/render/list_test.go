@@ -293,3 +293,17 @@ func TestListPrettyAddsTagsOnRequest(t *testing.T) {
 		t.Errorf("tags column missing:\n%s", out)
 	}
 }
+
+func TestListPrettyColoursTypes(t *testing.T) {
+	out := pretty(t, tableDocs(), 120, false)
+
+	for _, line := range strings.Split(out, "\n") {
+		if strings.Contains(plainText(line), "Docs") {
+			if !strings.Contains(line, typeStyles["reference"].Render("reference")) {
+				t.Errorf("reference type is not coloured: %q", line)
+			}
+			return
+		}
+	}
+	t.Errorf("no row for the reference:\n%s", plainText(out))
+}

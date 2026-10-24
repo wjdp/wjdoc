@@ -309,6 +309,12 @@ func styledCell(doc docs.Document, col column, width int) string {
 			style = faintStyle
 		}
 		styled = style.Render(text)
+	case colType:
+		style, known := typeStyles[doc.Type]
+		if !known || faded {
+			style = style.Faint(true)
+		}
+		styled = style.Render(text)
 	case colTitle:
 		switch {
 		case doc.Err != nil:
