@@ -10,10 +10,12 @@
 <aside id="sidebar">
   <header>
     <h1 id="project">wj</h1>
-    <input id="search" type="search" placeholder="Filter by title or number  /" autocomplete="off">
+    <input id="search" type="search" placeholder="Filter by title, number or tag  /" autocomplete="off">
     <div class="filters">
       <select id="status-filter" aria-label="Status"></select>
       <select id="type-filter" aria-label="Type"></select>
+      <select id="priority-filter" aria-label="Priority"></select>
+      <select id="tag-filter" aria-label="Tag"></select>
     </div>
   </header>
   <ol id="list"></ol>
@@ -27,6 +29,8 @@
         <span id="doc-path"></span>
         <span id="doc-type" class="type"></span>
         <select id="doc-status" aria-label="Status"></select>
+        <select id="doc-priority" aria-label="Priority"></select>
+        <span id="doc-tags"></span>
         <span id="doc-dates"></span>
       </div>
       <div class="actions">

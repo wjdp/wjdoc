@@ -57,6 +57,8 @@ type summary struct {
 	Path     string     `json:"path"`
 	Type     string     `json:"type"`
 	Status   string     `json:"status"`
+	Priority string     `json:"priority"`
+	Tags     []string   `json:"tags"`
 	Title    string     `json:"title"`
 	Created  *time.Time `json:"created"`
 	Modified *time.Time `json:"modified"`
@@ -71,9 +73,10 @@ type detail struct {
 }
 
 type vocabulary struct {
-	Types    []string `json:"types"`
-	Statuses []string `json:"statuses"`
-	Inactive []string `json:"inactive"`
+	Types      []string `json:"types"`
+	Statuses   []string `json:"statuses"`
+	Inactive   []string `json:"inactive"`
+	Priorities []string `json:"priorities"`
 }
 
 func (s *server) list(writer http.ResponseWriter, _ *http.Request) {
@@ -99,7 +102,7 @@ func (s *server) list(writer http.ResponseWriter, _ *http.Request) {
 		Project    string     `json:"project"`
 		Docs       []summary  `json:"docs"`
 		Vocabulary vocabulary `json:"vocabulary"`
-	}{filepath.Base(s.root), summaries, vocabulary{docs.KnownTypes, docs.KnownStatuses, inactive}})
+	}{filepath.Base(s.root), summaries, vocabulary{docs.KnownTypes, docs.KnownStatuses, inactive, docs.KnownPriorities}})
 }
 
 func (s *server) show(writer http.ResponseWriter, request *http.Request) {
@@ -272,12 +275,17 @@ func (s *server) fillDates(documents []docs.Document) {
 
 func toSummary(document docs.Document) summary {
 	result := summary{
-		Name:   filepath.Base(document.AbsPath),
-		Number: document.Number,
-		Path:   document.Path,
-		Type:   document.Type,
-		Status: document.Status,
-		Title:  document.Title,
+		Name:     filepath.Base(document.AbsPath),
+		Number:   document.Number,
+		Path:     document.Path,
+		Type:     document.Type,
+		Status:   document.Status,
+		Priority: document.Priority,
+		Tags:     document.Tags,
+		Title:    document.Title,
+	}
+	if result.Tags == nil {
+		result.Tags = []string{}
 	}
 	if !document.Created.IsZero() {
 		result.Created = &document.Created

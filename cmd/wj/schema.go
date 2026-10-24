@@ -25,6 +25,16 @@ type schemaStatus struct {
 	Types       []string `json:"types"`
 }
 
+type schemaPriority struct {
+	Name        string `json:"name"`
+	Description string `json:"description"`
+}
+
+type schemaTags struct {
+	Pattern string `json:"pattern"`
+	Example string `json:"example"`
+}
+
 type schemaFrontmatter struct {
 	Required []string `json:"required"`
 	Optional []string `json:"optional"`
@@ -34,6 +44,8 @@ type schemaDoc struct {
 	Filename      schemaFilename    `json:"filename"`
 	Types         []schemaType      `json:"types"`
 	Statuses      []schemaStatus    `json:"statuses"`
+	Priorities    []schemaPriority  `json:"priorities"`
+	Tags          schemaTags        `json:"tags"`
 	Frontmatter   schemaFrontmatter `json:"frontmatter"`
 	UnknownValues string            `json:"unknown_values"`
 }
@@ -50,6 +62,14 @@ var statusDescriptions = map[string]string{
 	"superseded":  "superseded",
 }
 
+var priorityDescriptions = map[string]string{
+	"p0": "drop everything",
+	"p1": "high",
+	"p2": "normal",
+	"p3": "low",
+	"p4": "nice to have",
+}
+
 func buildSchema() schemaDoc {
 	types := make([]schemaType, 0, len(docs.Types))
 	for _, docType := range docs.Types {
@@ -61,16 +81,26 @@ func buildSchema() schemaDoc {
 		statuses = append(statuses, schemaStatus{Name: name, Description: statusDescriptions[name], Types: docs.StatusTypesFor(name)})
 	}
 
+	priorities := make([]schemaPriority, 0, len(docs.KnownPriorities))
+	for _, name := range docs.KnownPriorities {
+		priorities = append(priorities, schemaPriority{Name: name, Description: priorityDescriptions[name]})
+	}
+
 	return schemaDoc{
 		Filename: schemaFilename{
 			Pattern: `^\d+-[A-Z0-9].*\.md$`,
 			Example: "007-Sync-robustness.md",
 		},
-		Types:    types,
-		Statuses: statuses,
+		Types:      types,
+		Statuses:   statuses,
+		Priorities: priorities,
+		Tags: schemaTags{
+			Pattern: docs.TagPattern.String(),
+			Example: "area:engine",
+		},
 		Frontmatter: schemaFrontmatter{
 			Required: []string{"type"},
-			Optional: []string{"status"},
+			Optional: []string{"status", "priority", "tags"},
 		},
 		UnknownValues: "warn",
 	}

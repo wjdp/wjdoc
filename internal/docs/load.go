@@ -95,6 +95,8 @@ func newDocument(root, absPath, name, source string) Document {
 			document.Frontmatter = mapping
 			document.Type = stringField(mapping, "type")
 			document.Status = stringField(mapping, "status")
+			document.Priority = stringField(mapping, "priority")
+			document.Tags = tagsField(mapping)
 		}
 	}
 
@@ -151,4 +153,22 @@ func stringField(mapping map[string]any, key string) string {
 		text = fmt.Sprint(value)
 	}
 	return strings.ToLower(strings.TrimSpace(text))
+}
+
+// tagsField is the "tags" list, lowercased and trimmed, or nil when the key is
+// absent or holds anything but a list of strings; lint reports the latter.
+func tagsField(mapping map[string]any) []string {
+	items, isList := mapping["tags"].([]any)
+	if !isList {
+		return nil
+	}
+	tags := make([]string, 0, len(items))
+	for _, item := range items {
+		text, isString := item.(string)
+		if !isString {
+			return nil
+		}
+		tags = append(tags, strings.ToLower(strings.TrimSpace(text)))
+	}
+	return tags
 }

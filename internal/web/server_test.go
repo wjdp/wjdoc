@@ -163,3 +163,21 @@ func TestServesTheApp(t *testing.T) {
 		t.Errorf("status %d, body %q", recorder.Code, recorder.Body)
 	}
 }
+
+func TestPatchSetsPriorityAndTagsComeBack(t *testing.T) {
+	root := copyFixture(t)
+	path := filepath.Join(root, "docs", "04-Ship-the-loader.md")
+	source, _ := os.ReadFile(path)
+	tagged := strings.Replace(string(source), "status: todo\n", "status: todo\ntags: [area:engine]\n", 1)
+	if err := os.WriteFile(path, []byte(tagged), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	got := decodeDetail(t, request(t, Handler(root), http.MethodPatch, "/api/docs/04-Ship-the-loader.md", `{"fields":{"priority":"p1"}}`))
+	if got.Priority != "p1" {
+		t.Errorf("priority %q, want p1", got.Priority)
+	}
+	if len(got.Tags) != 1 || got.Tags[0] != "area:engine" {
+		t.Errorf("tags %q, want [area:engine]", got.Tags)
+	}
+}

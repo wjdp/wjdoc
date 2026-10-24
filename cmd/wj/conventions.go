@@ -25,7 +25,11 @@ Frontmatter
           (immediate), planned (longer term), in-progress, blocked, open
           (reviews only), shelved (parked indefinitely, tasks and bugs only),
           done, rejected (decided against, tasks and bugs only), superseded.
-  Unknown type or status values warn, they do not error: the vocabulary grows.
+  priority optional, task, bug and review. p0 (drop everything), p1, p2, p3,
+          p4 (nice to have). Absent ranks after p4.
+  tags    optional. Free-form list of lowercase name or namespace:value:
+          tags: [area:engine, reach:app]. wj tags lists those in use.
+  Unknown type, status or priority values warn: the vocabulary grows.
   No created, updated or author fields: git already knows.
 
 Body

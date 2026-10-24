@@ -106,3 +106,65 @@ func TestUnsetFieldIsAnNoOpWhenAbsent(t *testing.T) {
 		}
 	}
 }
+
+func TestSetList(t *testing.T) {
+	cases := []struct {
+		name, source string
+		values       []string
+		want         string
+	}{
+		{
+			name:   "appends a missing key in flow style",
+			source: "---\ntype: task\n---\n\n# Heading\n",
+			values: []string{"area:engine", "reach:app"},
+			want:   "---\ntype: task\ntags: [area:engine, reach:app]\n---\n\n# Heading\n",
+		},
+		{
+			name:   "replaces a flow list",
+			source: "---\ntags: ['area:engine']\nstatus: todo\n---\n",
+			values: []string{"area:web"},
+			want:   "---\ntags: [area:web]\nstatus: todo\n---\n",
+		},
+		{
+			name:   "consumes a block list",
+			source: "---\ntags:\n  - a\n- b\nstatus: todo\n---\n",
+			values: []string{"c"},
+			want:   "---\ntags: [c]\nstatus: todo\n---\n",
+		},
+		{
+			name:   "quotes values that are not tag shaped",
+			source: "---\ntype: task\n---\n",
+			values: []string{"a, b"},
+			want:   "---\ntype: task\ntags: [\"a, b\"]\n---\n",
+		},
+		{
+			name:   "an empty list removes the key and its block",
+			source: "---\ntags:\n  - a\nstatus: todo\n---\n",
+			values: nil,
+			want:   "---\nstatus: todo\n---\n",
+		},
+	}
+
+	for _, testCase := range cases {
+		t.Run(testCase.name, func(t *testing.T) {
+			got, err := SetList([]byte(testCase.source), "tags", testCase.values)
+			if err != nil {
+				t.Fatalf("SetList: %v", err)
+			}
+			if string(got) != testCase.want {
+				t.Errorf("got %q, want %q", got, testCase.want)
+			}
+		})
+	}
+}
+
+func TestSetFieldReplacesABlockValue(t *testing.T) {
+	got, err := SetField([]byte("---\npriority:\n  - p1\ntype: task\n---\n"), "priority", "p2")
+	if err != nil {
+		t.Fatalf("SetField: %v", err)
+	}
+	want := "---\npriority: p2\ntype: task\n---\n"
+	if string(got) != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+}

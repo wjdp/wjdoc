@@ -49,6 +49,12 @@ func TestRunReportsEveryRule(t *testing.T) {
 		{"status on a reference", "docs/008-Reference-with-status.md", Warning, "status is not used on a reference"},
 		{"mixed padding width", "docs/11-Narrow-padding.md", Warning, "padding width 2 differs from the project width of 3"},
 		{"link to a superseded doc", "docs/001-Good.md", Warning, "which is superseded"},
+		{"unknown priority", "docs/019-Unknown-priority.md", Warning, `unknown priority "urgent"`},
+		{"priority on a reference", "docs/020-Reference-with-priority.md", Warning, "priority is not used on a reference"},
+		{"scalar tags", "docs/021-Scalar-tags.md", Error, "tags is not a list of strings"},
+		{"badly shaped tag", "docs/022-Odd-tags.md", Warning, `tag "area engine" is not a lowercase name`},
+		{"repeated tag", "docs/022-Odd-tags.md", Warning, `tag "x" is repeated`},
+		{"list priority", "docs/023-List-priority.md", Error, "priority is not a single value"},
 	}
 
 	for _, testCase := range cases {

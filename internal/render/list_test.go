@@ -25,6 +25,7 @@ func sampleDocs() []docs.Document {
 		{
 			Path: "docs/001-Sync-robustness.md", AbsPath: "/repo/docs/001-Sync-robustness.md",
 			Number: 1, Width: 3, Type: "task", Status: "in-progress", Title: "Sync robustness",
+			Priority: "p1", Tags: []string{"area:sync", "reach:app"},
 			Created:  time.Date(2025, 11, 2, 3, 4, 5, 0, time.UTC),
 			Modified: time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC),
 		},
@@ -73,29 +74,29 @@ func plainText(out string) string {
 func pretty(t *testing.T, list []docs.Document, width int, showPaths bool) string {
 	t.Helper()
 	var buf strings.Builder
-	List(&buf, list, Pretty, width, showPaths)
+	List(&buf, list, Pretty, width, Columns{Paths: showPaths})
 	return buf.String()
 }
 
-func TestListPlainHasSixFields(t *testing.T) {
+func TestListPlainHasEightFields(t *testing.T) {
 	var buf strings.Builder
-	List(&buf, sampleDocs(), Plain, 0, false)
+	List(&buf, sampleDocs(), Plain, 0, Columns{})
 
-	want := "docs/001-Sync-robustness.md\ttask\tin-progress\tSync robustness\t2025-11-02\t2026-01-02\n" +
-		"docs/002-No-frontmatter.md\t\t\tNo frontmatter\t\t\n"
+	want := "docs/001-Sync-robustness.md\ttask\tin-progress\tSync robustness\t2025-11-02\t2026-01-02\tp1\tarea:sync,reach:app\n" +
+		"docs/002-No-frontmatter.md\t\t\tNo frontmatter\t\t\t\t\n"
 	if buf.String() != want {
 		t.Errorf("got:\n%q\nwant:\n%q", buf.String(), want)
 	}
 	for _, line := range strings.Split(strings.TrimRight(buf.String(), "\n"), "\n") {
-		if fields := strings.Split(line, "\t"); len(fields) != 6 {
-			t.Errorf("line %q has %d fields, want 6", line, len(fields))
+		if fields := strings.Split(line, "\t"); len(fields) != 8 {
+			t.Errorf("line %q has %d fields, want 8", line, len(fields))
 		}
 	}
 }
 
 func TestListJSON(t *testing.T) {
 	var buf strings.Builder
-	List(&buf, sampleDocs(), JSON, 0, false)
+	List(&buf, sampleDocs(), JSON, 0, Columns{})
 
 	want := `[
   {
@@ -103,6 +104,11 @@ func TestListJSON(t *testing.T) {
     "path": "docs/001-Sync-robustness.md",
     "type": "task",
     "status": "in-progress",
+    "priority": "p1",
+    "tags": [
+      "area:sync",
+      "reach:app"
+    ],
     "title": "Sync robustness",
     "created": "2025-11-02T03:04:05Z",
     "modified": "2026-01-02T03:04:05Z",
@@ -113,6 +119,8 @@ func TestListJSON(t *testing.T) {
     "path": "docs/002-No-frontmatter.md",
     "type": "",
     "status": "",
+    "priority": "",
+    "tags": [],
     "title": "No frontmatter",
     "created": null,
     "modified": null,
@@ -259,5 +267,29 @@ func TestRelativeAge(t *testing.T) {
 		if got := RelativeAge(c.modified); got != c.want {
 			t.Errorf("RelativeAge(%v) = %q, want %q", c.modified, got, c.want)
 		}
+	}
+}
+
+func TestListPrettyShowsPriorityOnlyWhenPresent(t *testing.T) {
+	if header := strings.SplitN(plainText(pretty(t, tableDocs(), 120, false)), "\n", 2)[0]; strings.Contains(header, "Pri") {
+		t.Errorf("Pri column shown with no priorities: %q", header)
+	}
+
+	list := tableDocs()
+	list[0].Priority = "p1"
+	if header := strings.SplitN(plainText(pretty(t, list, 120, false)), "\n", 2)[0]; !strings.Contains(header, "Pri") {
+		t.Errorf("Pri column missing: %q", header)
+	}
+}
+
+func TestListPrettyAddsTagsOnRequest(t *testing.T) {
+	list := tableDocs()
+	list[1].Tags = []string{"area:engine"}
+
+	var buf strings.Builder
+	List(&buf, list, Pretty, 160, Columns{Tags: true})
+	out := plainText(buf.String())
+	if !strings.Contains(out, "Tags") || !strings.Contains(out, "area:engine") {
+		t.Errorf("tags column missing:\n%s", out)
 	}
 }

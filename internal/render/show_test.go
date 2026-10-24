@@ -54,6 +54,8 @@ func TestShowJSON(t *testing.T) {
   "path": "docs/001-Example.md",
   "type": "task",
   "status": "todo",
+  "priority": "",
+  "tags": [],
   "title": "Example",
   "created": null,
   "modified": null,

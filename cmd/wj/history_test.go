@@ -126,8 +126,8 @@ func TestListShowsTheGitDates(t *testing.T) {
 	}
 
 	fields := strings.Split(strings.TrimRight(out, "\n"), "\t")
-	if len(fields) != 6 {
-		t.Fatalf("got %d fields, want 6: %q", len(fields), out)
+	if len(fields) != 8 {
+		t.Fatalf("got %d fields, want 8: %q", len(fields), out)
 	}
 	for _, index := range []int{4, 5} {
 		if len(fields[index]) != len("2006-01-02") {

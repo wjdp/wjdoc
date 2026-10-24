@@ -18,6 +18,8 @@ reference, `status`. `wj` is the CLI that reads, writes and checks them.
 - Write one up: `wj new task <title>` for something new, `wj new bug <title>`
   for a fix to existing behaviour, then edit the body of the file it creates
   directly.
+- Prioritise and tag: `wj set <ref> priority p1` (p0–p4), `wj tag <ref>
+  area:engine`. Run `wj tags` first and reuse an existing tag where one fits.
 - Pick something up: `wj set <ref> status in-progress`.
 - Finish it: `wj set <ref> status done`.
 - Before committing: `wj lint`.

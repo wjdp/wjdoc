@@ -25,13 +25,16 @@ var nextOrder = map[string]int{
 var blockedReasonPattern = regexp.MustCompile(`(?im)^Blocked(?: by)?:.*$`)
 
 func nextCommand(shared *app) *cobra.Command {
-	var showPaths bool
+	var criteria docs.Criteria
+	var showPaths, showTags bool
 
 	command := &cobra.Command{
 		Use:   "next",
 		Short: "List the actionable documents",
 		Long: `List the documents worth picking up next: status in-progress, then
-blocked, then todo, then planned, ordered by number within each group.
+blocked, then todo, then planned. Within each group documents run by priority,
+p0 to p4 then unprioritised, and then by number. Priority only reorders: nothing
+is hidden for being low priority.
 Everything else (open reviews, shelved, done, rejected, superseded,
 references, and unknown statuses) is excluded.
 
@@ -39,8 +42,10 @@ For a blocked document, when its body has a line starting with "Blocked:" or
 "Blocked by:" (case-insensitive), that line is appended to the Title column
 as "<title> — <reason>" in every mode, plain and JSON included.
 
+--priority and --tag narrow the queue the same way as on wj list.
+
 On a terminal: a bold "next up · N" line, then the same table as wj list, with
---paths adding the same Document column. The ordering is fixed: wj list's
+--paths and --tags adding the same columns. The ordering is fixed: wj list's
 --sort, --since and --active do not apply here.
 Piped, or with --plain: the same tab-separated rows as wj list.
 With --json: the same array shape as wj list.
@@ -50,6 +55,7 @@ Run this at the start of a session to see what to work on.
 Examples:
   wj next                          what to pick up next
   wj next --plain                  the same, for scripts
+  wj next --tag area:engine        just the engine work
   wj -C ~/local/grate next --json  another project's queue, as JSON`,
 		Args: cobra.NoArgs,
 		RunE: func(command *cobra.Command, _ []string) error {
@@ -59,7 +65,7 @@ Examples:
 			}
 
 			actionable := make([]docs.Document, 0, len(documents))
-			for _, document := range documents {
+			for _, document := range docs.Filter(documents, criteria) {
 				if _, ok := nextOrder[document.Status]; !ok {
 					continue
 				}
@@ -70,6 +76,9 @@ Examples:
 				if nextOrder[left.Status] != nextOrder[right.Status] {
 					return nextOrder[left.Status] < nextOrder[right.Status]
 				}
+				if docs.PriorityRank(left.Priority) != docs.PriorityRank(right.Priority) {
+					return docs.PriorityRank(left.Priority) < docs.PriorityRank(right.Priority)
+				}
 				return left.Number < right.Number
 			})
 
@@ -78,12 +87,14 @@ Examples:
 			if mode == render.Pretty {
 				fmt.Fprintln(out, nextTitleStyle.Render(fmt.Sprintf("next up · %d", len(actionable))))
 			}
-			render.List(out, actionable, mode, terminalWidth(), showPaths)
+			render.List(out, actionable, mode, terminalWidth(), render.Columns{Paths: showPaths, Tags: showTags})
 			return nil
 		},
 	}
 
+	addPriorityTagFlags(command.Flags(), &criteria, "keep only")
 	command.Flags().BoolVar(&showPaths, "paths", false, "add a column of repo-relative paths")
+	command.Flags().BoolVar(&showTags, "tags", false, "add a column of tags")
 	return command
 }
 

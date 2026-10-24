@@ -22,6 +22,12 @@ var (
 		"rejected":    lipgloss.NewStyle().Faint(true),
 		"superseded":  lipgloss.NewStyle().Faint(true),
 	}
+	priorityStyles = map[string]lipgloss.Style{
+		"p0": lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("9")),
+		"p1": lipgloss.NewStyle().Foreground(lipgloss.Color("11")),
+		"p3": lipgloss.NewStyle().Faint(true),
+		"p4": lipgloss.NewStyle().Faint(true),
+	}
 	missingStyle = lipgloss.NewStyle().Faint(true)
 	headerStyle  = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("15")).Background(lipgloss.Color("18"))
 	pathStyle    = lipgloss.NewStyle().Bold(true)

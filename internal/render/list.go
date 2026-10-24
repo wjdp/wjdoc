@@ -29,7 +29,9 @@ const (
 	colNumber column = iota
 	colPath
 	colStatus
+	colPriority
 	colTitle
+	colTags
 	colType
 	colCreated
 	colModified
@@ -37,36 +39,46 @@ const (
 
 // dropOrder is the order optional columns give up their space when the
 // terminal is too narrow for a comfortable Title.
-var dropOrder = []column{colType, colCreated, colModified}
+var dropOrder = []column{colType, colTags, colCreated, colModified, colPriority}
 
 var headers = map[column]string{
 	colNumber:   "#",
 	colPath:     "Document",
 	colStatus:   "Status",
+	colPriority: "Pri",
 	colTitle:    "Title",
+	colTags:     "Tags",
 	colType:     "Type",
 	colCreated:  "Created",
 	colModified: "Modified",
 }
 
+// Columns are the optional columns of the Pretty table.
+type Columns struct {
+	// Paths adds the repo-relative path as its own column.
+	Paths bool
+	// Tags adds the document's tags.
+	Tags bool
+}
+
 // List writes docs in the given mode. width is the terminal width the caller
-// measured; it only affects the Pretty table. showPaths adds the repo-relative
-// path as its own column.
-func List(w io.Writer, list []docs.Document, mode Mode, width int, showPaths bool) {
+// measured; it and columns only affect the Pretty table.
+func List(w io.Writer, list []docs.Document, mode Mode, width int, columns Columns) {
 	switch mode {
 	case JSON:
 		listJSON(w, list)
 	case Plain:
 		listPlain(w, list)
 	default:
-		listPretty(w, list, width, showPaths)
+		listPretty(w, list, width, columns)
 	}
 }
 
 func listPlain(w io.Writer, list []docs.Document) {
 	for _, doc := range list {
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n",
-			doc.Path, doc.Type, doc.Status, doc.Title, isoDate(doc.Created), isoDate(doc.Modified))
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
+			doc.Path, doc.Type, doc.Status, doc.Title, isoDate(doc.Created), isoDate(doc.Modified),
+			doc.Priority, strings.Join(doc.Tags, ","))
 	}
 }
 
@@ -130,8 +142,12 @@ func plainCell(doc docs.Document, col column) string {
 		return doc.Path
 	case colStatus:
 		return doc.Status
+	case colPriority:
+		return doc.Priority
 	case colTitle:
 		return titleText(doc)
+	case colTags:
+		return strings.Join(doc.Tags, ", ")
 	case colType:
 		return doc.Type
 	case colCreated:
@@ -149,12 +165,20 @@ func titleText(doc docs.Document) string {
 	return doc.Title
 }
 
-func listPretty(w io.Writer, list []docs.Document, width int, showPaths bool) {
+func listPretty(w io.Writer, list []docs.Document, width int, optional Columns) {
 	columns := []column{colNumber}
-	if showPaths {
+	if optional.Paths {
 		columns = append(columns, colPath)
 	}
-	columns = append(columns, colStatus, colTitle, colType, colCreated, colModified)
+	columns = append(columns, colStatus)
+	if anyPriority(list) {
+		columns = append(columns, colPriority)
+	}
+	columns = append(columns, colTitle)
+	if optional.Tags {
+		columns = append(columns, colTags)
+	}
+	columns = append(columns, colType, colCreated, colModified)
 
 	widths := map[column]int{}
 	for _, col := range columns {
@@ -173,6 +197,9 @@ func listPretty(w io.Writer, list []docs.Document, width int, showPaths bool) {
 		columns = without(columns, droppable)
 	}
 	widths[colTitle] = min(widths[colTitle], max(titleSpace(columns, widths, width), minTitleWidth))
+	if slices.Contains(columns, colTags) {
+		widths[colTags] = min(widths[colTags], max(widths[colTitle], minTitleWidth))
+	}
 
 	var b strings.Builder
 	for index, col := range columns {
@@ -203,6 +230,15 @@ func listPretty(w io.Writer, list []docs.Document, width int, showPaths bool) {
 			fmt.Fprintln(w, errorStyle.Render(fmt.Sprintf("invalid frontmatter %s: %s", doc.Path, doc.Err)))
 		}
 	}
+}
+
+func anyPriority(list []docs.Document) bool {
+	for _, doc := range list {
+		if doc.Priority != "" {
+			return true
+		}
+	}
+	return false
 }
 
 // titleSpace is the room left for Title once every other shown column has
@@ -265,6 +301,12 @@ func styledCell(doc docs.Document, col column, width int) string {
 		style := styleFor(doc.Status, statusStyles)
 		if faded {
 			style = style.Bold(false).Faint(true)
+		}
+		styled = style.Render(text)
+	case colPriority:
+		style := styleFor(doc.Priority, priorityStyles)
+		if faded {
+			style = faintStyle
 		}
 		styled = style.Render(text)
 	case colTitle:

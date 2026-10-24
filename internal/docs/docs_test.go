@@ -373,7 +373,7 @@ func TestFilter(t *testing.T) {
 
 	for _, testCase := range cases {
 		t.Run(testCase.name, func(t *testing.T) {
-			filtered := Filter(documents, testCase.types, testCase.statuses)
+			filtered := Filter(documents, Criteria{Types: testCase.types, Statuses: testCase.statuses})
 			if testCase.wantPaths == nil {
 				if len(filtered) != len(documents) {
 					t.Fatalf("kept %d documents, want all %d", len(filtered), len(documents))

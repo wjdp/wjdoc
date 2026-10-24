@@ -116,7 +116,7 @@ Examples:
 
 func writeOutboundLinks(out io.Writer, found []outboundLink, mode render.Mode) error {
 	if mode == render.JSON {
-		return writeLinkJSON(out, found)
+		return writeIndentedJSON(out, found)
 	}
 	for _, link := range found {
 		switch mode {
@@ -143,7 +143,7 @@ func writeBacklinks(out io.Writer, references []project.Reference, mode render.M
 		for _, reference := range references {
 			rows = append(rows, inboundLink{Path: reference.Path, Line: reference.Line})
 		}
-		return writeLinkJSON(out, rows)
+		return writeIndentedJSON(out, rows)
 	}
 
 	for _, reference := range references {
@@ -156,7 +156,7 @@ func writeBacklinks(out io.Writer, references []project.Reference, mode render.M
 	return nil
 }
 
-func writeLinkJSON(out io.Writer, value any) error {
+func writeIndentedJSON(out io.Writer, value any) error {
 	encoder := json.NewEncoder(out)
 	encoder.SetIndent("", "  ")
 	return encoder.Encode(value)

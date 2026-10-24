@@ -24,17 +24,21 @@ var listTitleStyle = lipgloss.NewStyle().Bold(true)
 const projectsEnv = "WJ_PROJECTS"
 
 func listCommand(shared *app) *cobra.Command {
-	var types, statuses []string
-	var all, reverse, active, showPaths bool
+	var criteria docs.Criteria
+	var all, reverse, active, showPaths, showTags bool
 	var sortBy, since string
 
 	command := &cobra.Command{
 		Use:     "list",
 		Aliases: []string{"ls"},
 		Short:   "List the documents in docs/",
-		Long: `List every document in docs/, optionally filtered by frontmatter type or status.
+		Long: `List every document in docs/, optionally filtered by frontmatter type, status,
+priority or tag.
 
-Filters take a comma-separated list, may be repeated, and match case-insensitively.
+--type, --status and --priority take a comma-separated list, may be repeated,
+and match any value given. --tag may be repeated and every tag given must be
+present; a tag ending in ":" matches any tag in that namespace (--tag area:).
+All filters match case-insensitively.
 Documents whose filename does not match the convention are listed too, so that
 nothing in docs/ is hidden.
 
@@ -43,9 +47,10 @@ file under any name, and the last commit to change its content. A pure rename
 does not count as a change. Both are relative ages on a terminal and ISO dates
 elsewhere, and are empty outside a git repository.
 
---sort orders by number (the default), created, modified or status. created and
-modified put the newest first; status follows the order of the footer counts and
-then the number. --reverse flips whichever order is in force.
+--sort orders by number (the default), created, modified, status or priority.
+created and modified put the newest first; status follows the order of the
+footer counts and then the number; priority runs p0 to p4, then unknown
+priorities, then unprioritised documents, and then the number. --reverse flips whichever order is in force.
 
 --since keeps documents modified within a window, given as a Go duration (72h)
 or with a d, w, mo or y suffix (2w). --active drops the shelved, done, rejected
@@ -57,22 +62,27 @@ set. Paths are then prefixed with the project directory name and filters apply
 across all of them.
 
 On a terminal: a bold "<project> docs · N files" line, then a coloured table of
-number, status, title, type, created and modified, and a faint line of counts by
-status. The number links to the file; unnumbered files show their filename there.
-Narrow terminals drop Type, then Created, then Modified to keep the title
-readable, and the title is truncated to whatever space is left. Shelved, done,
-rejected and superseded rows are faint. --paths adds a Document column of the repo-relative
-path, which is never dropped.
+number, status, priority, title, type, created and modified, and a faint line of
+counts by status. The priority column appears only when a listed document has
+one. The number links to the file; unnumbered files show their filename there.
+Narrow terminals drop Type, then Tags, Created, Modified and Pri to keep the
+title readable, and the title is truncated to whatever space is left. Shelved,
+done, rejected and superseded rows are faint. --paths adds a Document column of
+the repo-relative path, which is never dropped. --tags adds a Tags column after
+Title.
 Piped, or with --plain: one line per document, tab-separated, no header and no
-colour: path, type, status, title, created, modified. Absent fields are empty.
-With --json: an array of objects with number, path, type, status, title, created,
-modified and error.
+colour: path, type, status, title, created, modified, priority, tags (comma
+separated). Absent fields are empty.
+With --json: an array of objects with number, path, type, status, priority,
+tags, title, created, modified and error.
 
 Examples:
   wj list                              every document
   wj list --type task --status todo    just the todo tasks
   wj list -t task,bug                  all the work, new and fixes
   wj list --status todo,in-progress    either status
+  wj list -p p0,p1 --sort priority     the urgent work, most urgent first
+  wj list --tag area:engine --tags     everything tagged area:engine
   wj list --active --sort modified     what is live, most recently touched first
   wj list --since 2w                   touched in the last fortnight
   wj list --all --status in-progress   what is in flight across every project
@@ -83,7 +93,7 @@ Examples:
 			if err != nil {
 				return err
 			}
-			documents = docs.Filter(documents, types, statuses)
+			documents = docs.Filter(documents, criteria)
 			if active {
 				documents = activeOnly(documents)
 			}
@@ -103,19 +113,20 @@ Examples:
 			if mode == render.Pretty {
 				fmt.Fprintln(out, listTitleStyle.Render(heading(len(documents))))
 			}
-			render.List(out, documents, mode, terminalWidth(), showPaths)
+			render.List(out, documents, mode, terminalWidth(), render.Columns{Paths: showPaths, Tags: showTags})
 			return nil
 		},
 	}
 
-	command.Flags().StringSliceVarP(&types, "type", "t", nil, "keep only these types (comma-separated, repeatable)")
-	command.Flags().StringSliceVarP(&statuses, "status", "s", nil, "keep only these statuses (comma-separated, repeatable)")
+	addTypeStatusFlags(command.Flags(), &criteria, "keep only")
+	addPriorityTagFlags(command.Flags(), &criteria, "keep only")
 	command.Flags().BoolVar(&all, "all", false, "list every sibling project, not just this one")
-	command.Flags().StringVar(&sortBy, "sort", sortByNumber, "order by `key`: number, created, modified or status")
+	command.Flags().StringVar(&sortBy, "sort", sortByNumber, "order by `key`: number, created, modified, status or priority")
 	command.Flags().BoolVarP(&reverse, "reverse", "r", false, "reverse the order")
 	command.Flags().StringVar(&since, "since", "", "keep documents modified within a `window`, e.g. 3d, 2w, 6mo, 72h")
 	command.Flags().BoolVarP(&active, "active", "a", false, "drop the shelved, done, rejected and superseded documents")
 	command.Flags().BoolVar(&showPaths, "paths", false, "add a column of repo-relative paths")
+	command.Flags().BoolVar(&showTags, "tags", false, "add a column of tags")
 	return command
 }
 
@@ -230,6 +241,7 @@ const (
 	sortByCreated  = "created"
 	sortByModified = "modified"
 	sortByStatus   = "status"
+	sortByPriority = "priority"
 )
 
 // statusOrder ranks statuses for --sort status, matching the order of the
@@ -282,8 +294,18 @@ func sortDocuments(documents []docs.Document, key string, reverse bool) error {
 			}
 			return left.Number < right.Number
 		}
+	case sortByPriority:
+		less = func(left, right docs.Document) bool {
+			if docs.PriorityRank(left.Priority) != docs.PriorityRank(right.Priority) {
+				return docs.PriorityRank(left.Priority) < docs.PriorityRank(right.Priority)
+			}
+			if left.Priority != right.Priority {
+				return left.Priority < right.Priority
+			}
+			return left.Number < right.Number
+		}
 	default:
-		return fmt.Errorf("unknown --sort %q: want number, created, modified or status", key)
+		return fmt.Errorf("unknown --sort %q: want number, created, modified, status or priority", key)
 	}
 
 	sort.SliceStable(documents, func(i, j int) bool {

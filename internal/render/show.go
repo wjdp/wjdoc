@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 
 	"github.com/wjdp/wjdoc/internal/docs"
 )
@@ -36,7 +37,14 @@ func showPlain(w io.Writer, doc docs.Document, bodyOnly bool) {
 
 func showPretty(w io.Writer, doc docs.Document, bodyOnly bool) {
 	if !bodyOnly {
-		fmt.Fprintln(w, headerStyle.Render(fmt.Sprintf("%s · %s · %s", doc.Path, displayOrDash(doc.Type), displayOrDash(doc.Status))))
+		parts := []string{doc.Path, displayOrDash(doc.Type), displayOrDash(doc.Status)}
+		if doc.Priority != "" {
+			parts = append(parts, doc.Priority)
+		}
+		if len(doc.Tags) > 0 {
+			parts = append(parts, strings.Join(doc.Tags, ", "))
+		}
+		fmt.Fprintln(w, headerStyle.Render(strings.Join(parts, " · ")))
 	}
 	fmt.Fprint(w, content(doc, bodyOnly))
 }

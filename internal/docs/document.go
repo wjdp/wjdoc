@@ -2,7 +2,10 @@
 // project's docs/ directory.
 package docs
 
-import "time"
+import (
+	"regexp"
+	"time"
+)
 
 // Document is one numbered markdown file in docs/.
 type Document struct {
@@ -22,6 +25,10 @@ type Document struct {
 	Type string
 	// Status is frontmatter "status", empty when absent.
 	Status string
+	// Priority is frontmatter "priority", empty when absent.
+	Priority string
+	// Tags is frontmatter "tags", nil when absent or not a list of strings.
+	Tags []string
 	// Frontmatter holds every parsed frontmatter key.
 	Frontmatter map[string]any
 	// Body is the markdown after the frontmatter block.
@@ -55,6 +62,12 @@ var (
 	KnownTypes    = typeNames(Types)
 	KnownStatuses = []string{"todo", "planned", "in-progress", "blocked", "open", "shelved", "done", "rejected", "superseded"}
 
+	// KnownPriorities run from most to least urgent.
+	KnownPriorities = []string{"p0", "p1", "p2", "p3", "p4"}
+
+	// TagPattern is the shape of a tag: a name, or a namespace and a value.
+	TagPattern = regexp.MustCompile(`^[a-z0-9-]+(:[a-z0-9-]+)?$`)
+
 	// StatusOnlyFor narrows a status to some types; every other known status
 	// applies to all the types that require one.
 	StatusOnlyFor = map[string][]string{
@@ -72,6 +85,20 @@ func Inactive(status string) bool {
 		return true
 	}
 	return false
+}
+
+// PriorityRank orders priorities for sorting: the known ones by urgency, then
+// unknown ones, then documents with no priority at all.
+func PriorityRank(priority string) int {
+	if priority == "" {
+		return len(KnownPriorities) + 1
+	}
+	for rank, known := range KnownPriorities {
+		if priority == known {
+			return rank
+		}
+	}
+	return len(KnownPriorities)
 }
 
 // StatusTypesFor names the types a known status applies to.

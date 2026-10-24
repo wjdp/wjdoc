@@ -21,6 +21,8 @@ wj init                          create docs/ and the about-doc
 wj list                          table of every doc
 wj new task Ship the loader      write up a task, then edit the file
 wj set 7 status done             flip a frontmatter field
+wj set 7 priority p1             p0 (urgent) to p4
+wj tag 7 area:engine             add a tag; wj tags lists those in use
 wj lint                          check the convention before committing
 wj next                          what to pick up next
 ```

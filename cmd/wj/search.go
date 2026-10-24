@@ -22,7 +22,7 @@ type searchMatch struct {
 }
 
 func searchCommand(shared *app) *cobra.Command {
-	var types, statuses []string
+	var criteria docs.Criteria
 	var useRegex bool
 
 	command := &cobra.Command{
@@ -32,8 +32,8 @@ func searchCommand(shared *app) *cobra.Command {
 on PATH.
 
 term is a fixed string by default; pass --regex to treat it as a ripgrep
-regular expression instead. --type and --status filter which documents are
-searched first, same as wj list.
+regular expression instead. --type, --status, --priority and --tag filter which
+documents are searched first, same as wj list.
 
 On a terminal: rg's own coloured output, path in bold, matches highlighted.
 Piped, or with --plain: rg's plain "path:line:text" output, one per match,
@@ -56,7 +56,7 @@ Examples:
 			if err != nil {
 				return err
 			}
-			documents = docs.Filter(documents, types, statuses)
+			documents = docs.Filter(documents, criteria)
 
 			paths := make([]string, 0, len(documents))
 			for _, document := range documents {
@@ -102,8 +102,8 @@ Examples:
 		},
 	}
 
-	command.Flags().StringSliceVarP(&types, "type", "t", nil, "search only these types (comma-separated, repeatable)")
-	command.Flags().StringSliceVarP(&statuses, "status", "s", nil, "search only these statuses (comma-separated, repeatable)")
+	addTypeStatusFlags(command.Flags(), &criteria, "search only")
+	addPriorityTagFlags(command.Flags(), &criteria, "search only")
 	command.Flags().BoolVarP(&useRegex, "regex", "E", false, "treat term as a ripgrep regular expression")
 	return command
 }

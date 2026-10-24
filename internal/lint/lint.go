@@ -84,6 +84,8 @@ func Run(root string, documents []docs.Document) []Finding {
 			add(document, 1, Error, "frontmatter is missing")
 		default:
 			findings = append(findings, frontmatterFindings(document)...)
+			findings = append(findings, priorityFindings(document)...)
+			findings = append(findings, tagFindings(document)...)
 		}
 
 		findings = append(findings, linkFindings(root, byPath, document)...)
@@ -139,6 +141,54 @@ func frontmatterFindings(document docs.Document) []Finding {
 		add(Error, "status is missing, required for a %s", document.Type)
 	case !docs.StatusRequired(document.Type) && document.Status != "":
 		add(Warning, "status is not used on a %s", document.Type)
+	}
+	return findings
+}
+
+// frontmatterFinding is a finding against the frontmatter block as a whole.
+func frontmatterFinding(document docs.Document, level Level, format string, args ...any) Finding {
+	return Finding{Path: document.Path, Line: 1, Level: level, Message: fmt.Sprintf(format, args...)}
+}
+
+func priorityFindings(document docs.Document) []Finding {
+	value, present := document.Frontmatter["priority"]
+	if !present || value == nil {
+		return nil
+	}
+	switch value.(type) {
+	case []any, map[string]any:
+		return []Finding{frontmatterFinding(document, Error, "priority is not a single value")}
+	}
+
+	var findings []Finding
+	if !contains(docs.KnownPriorities, document.Priority) {
+		findings = append(findings, frontmatterFinding(document, Warning, "unknown priority %q, want one of %s", document.Priority, strings.Join(docs.KnownPriorities, ", ")))
+	}
+	if document.Type == "reference" {
+		findings = append(findings, frontmatterFinding(document, Warning, "priority is not used on a reference"))
+	}
+	return findings
+}
+
+func tagFindings(document docs.Document) []Finding {
+	value, present := document.Frontmatter["tags"]
+	if !present || value == nil {
+		return nil
+	}
+	if document.Tags == nil {
+		return []Finding{frontmatterFinding(document, Error, "tags is not a list of strings, write tags: [%v]", value)}
+	}
+
+	var findings []Finding
+	seen := map[string]bool{}
+	for _, tag := range document.Tags {
+		if !docs.TagPattern.MatchString(tag) {
+			findings = append(findings, frontmatterFinding(document, Warning, "tag %q is not a lowercase name or namespace:value", tag))
+		}
+		if seen[tag] {
+			findings = append(findings, frontmatterFinding(document, Warning, "tag %q is repeated", tag))
+		}
+		seen[tag] = true
 	}
 	return findings
 }

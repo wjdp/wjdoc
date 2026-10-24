@@ -4,7 +4,7 @@ const $ = (id) => document.getElementById(id);
 
 const state = {
   docs: [],
-  vocabulary: { types: [], statuses: [], inactive: [] },
+  vocabulary: { types: [], statuses: [], inactive: [], priorities: [] },
   current: null,
   editing: false,
 };
@@ -60,7 +60,12 @@ function relativeAge(iso) {
 // open document lives in the hash.
 function filters() {
   const params = new URLSearchParams(location.search);
-  return { status: params.get("status") || ACTIVE, type: params.get("type") || ALL };
+  return {
+    status: params.get("status") || ACTIVE,
+    type: params.get("type") || ALL,
+    priority: params.get("priority") || ALL,
+    tag: params.get("tag") || ALL,
+  };
 }
 
 function setFilter(key, value, fallback) {
@@ -72,13 +77,16 @@ function setFilter(key, value, fallback) {
   renderList();
 }
 
-function matches(doc, { status, type }, needle) {
+function matches(doc, { status, type, priority, tag }, needle) {
   if (status === ACTIVE && isInactive(doc.status)) return false;
   if (status === NONE && doc.status) return false;
   if (![ACTIVE, ALL, NONE].includes(status) && doc.status !== status) return false;
   if (type !== ALL && doc.type !== type) return false;
+  if (priority === NONE && doc.priority) return false;
+  if (![ALL, NONE].includes(priority) && doc.priority !== priority) return false;
+  if (tag !== ALL && !doc.tags.includes(tag)) return false;
   if (!needle) return true;
-  return `${numberLabel(doc)} ${doc.title} ${doc.name}`.toLowerCase().includes(needle);
+  return `${numberLabel(doc)} ${doc.title} ${doc.name} ${doc.tags.join(" ")}`.toLowerCase().includes(needle);
 }
 
 function visibleDocs() {
@@ -106,6 +114,17 @@ function renderFilters() {
     [NONE, "No status"],
   ], current.status);
   fillSelect($("type-filter"), [[ALL, "All types"], ...types.map((type) => [type, type])], current.type);
+
+  const seenPriorities = state.docs.map((doc) => doc.priority).filter(Boolean);
+  const priorities = [...new Set([...state.vocabulary.priorities, ...seenPriorities])];
+  fillSelect($("priority-filter"), [
+    [ALL, "All priorities"],
+    ...priorities.map((priority) => [priority, priority]),
+    [NONE, "No priority"],
+  ], current.priority);
+
+  const tags = [...new Set(state.docs.flatMap((doc) => doc.tags))].sort();
+  fillSelect($("tag-filter"), [[ALL, "All tags"], ...tags.map((tag) => [tag, tag])], current.tag);
 }
 
 function renderList() {
@@ -118,7 +137,9 @@ function renderList() {
       element("span", { class: "title", title: doc.title }, doc.title),
       element("span", { class: "tags" },
         doc.status ? element("span", { class: `status status-${doc.status}` }, doc.status) : null,
-        doc.type ? element("span", { class: `type type-${doc.type}` }, doc.type) : null),
+        doc.priority ? element("span", { class: `priority priority-${doc.priority}` }, doc.priority) : null,
+        doc.type ? element("span", { class: `type type-${doc.type}` }, doc.type) : null,
+        ...doc.tags.map((tag) => element("span", { class: "tag" }, tag))),
     );
     if (doc.name === selected) link.setAttribute("aria-current", "page");
     return element("li", {}, link);
@@ -163,6 +184,11 @@ function renderDocument() {
   fillSelect($("doc-status"), [["", "no status"], ...statuses.map((status) => [status, status])], doc.status);
   $("doc-status").className = `status status-${doc.status}`;
 
+  const priorities = [...new Set([...state.vocabulary.priorities, doc.priority].filter(Boolean))];
+  fillSelect($("doc-priority"), [["", "no priority"], ...priorities.map((priority) => [priority, priority])], doc.priority);
+  $("doc-priority").className = `priority priority-${doc.priority}`;
+  $("doc-tags").replaceChildren(...doc.tags.map((tag) => element("span", { class: "tag" }, tag)));
+
   const dates = [];
   if (doc.created) dates.push(`created ${relativeAge(doc.created)}`);
   if (doc.modified) dates.push(`modified ${relativeAge(doc.modified)}`);
@@ -180,6 +206,7 @@ function renderDocument() {
   $("save").classList.toggle("primary", state.editing);
   $("toggle").textContent = state.editing ? "View" : "Edit";
   $("doc-status").disabled = state.editing;
+  $("doc-priority").disabled = state.editing;
 }
 
 // Rendered markdown is relative to docs/, which the server serves at /docs/.
@@ -263,6 +290,11 @@ async function setStatus(status) {
   else $("doc-status").value = state.current.status;
 }
 
+async function setPriority(priority) {
+  if (await write("PATCH", { fields: { priority } })) showMessage(priority ? `Priority ${priority}` : "Priority removed");
+  else $("doc-priority").value = state.current.priority;
+}
+
 function step(offset) {
   const visible = visibleDocs();
   if (!visible.length) return;
@@ -344,7 +376,10 @@ $("search").addEventListener("keydown", (event) => {
 });
 $("status-filter").addEventListener("change", (event) => setFilter("status", event.target.value, ACTIVE));
 $("type-filter").addEventListener("change", (event) => setFilter("type", event.target.value, ALL));
+$("priority-filter").addEventListener("change", (event) => setFilter("priority", event.target.value, ALL));
+$("tag-filter").addEventListener("change", (event) => setFilter("tag", event.target.value, ALL));
 $("doc-status").addEventListener("change", (event) => setStatus(event.target.value));
+$("doc-priority").addEventListener("change", (event) => setPriority(event.target.value));
 $("toggle").addEventListener("click", () => setEditing(!state.editing));
 $("save").addEventListener("click", save);
 $("view").addEventListener("click", onViewClick);

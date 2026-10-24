@@ -65,12 +65,43 @@ func single(matches []Document, ref string) (bool, error) {
 	}
 }
 
-// Filter keeps documents whose type and status are in the given sets. An empty
-// set means no filtering on that field; matching is case-insensitive.
-func Filter(documents []Document, types, statuses []string) []Document {
+// Criteria selects documents. An empty field means no filtering on it; values
+// match case-insensitively.
+type Criteria struct {
+	Types      []string
+	Statuses   []string
+	Priorities []string
+	// Tags must all be present. A tag ending in ":" matches any tag in that
+	// namespace.
+	Tags []string
+}
+
+// Filter keeps the documents that meet every criterion.
+func Filter(documents []Document, criteria Criteria) []Document {
 	return filterFunc(documents, func(document Document) bool {
-		return matchesAny(document.Type, types) && matchesAny(document.Status, statuses)
+		return matchesAny(document.Type, criteria.Types) &&
+			matchesAny(document.Status, criteria.Statuses) &&
+			matchesAny(document.Priority, criteria.Priorities) &&
+			hasAllTags(document.Tags, criteria.Tags)
 	})
+}
+
+func hasAllTags(tags, wanted []string) bool {
+	for _, want := range wanted {
+		if !hasTag(tags, strings.ToLower(strings.TrimSpace(want))) {
+			return false
+		}
+	}
+	return true
+}
+
+func hasTag(tags []string, want string) bool {
+	for _, tag := range tags {
+		if tag == want || strings.HasSuffix(want, ":") && strings.HasPrefix(tag, want) {
+			return true
+		}
+	}
+	return false
 }
 
 func matchesAny(value string, wanted []string) bool {
