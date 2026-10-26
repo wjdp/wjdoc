@@ -181,3 +181,19 @@ func TestPatchSetsPriorityAndTagsComeBack(t *testing.T) {
 		t.Errorf("tags %q, want [area:engine]", got.Tags)
 	}
 }
+
+func TestDocsInFoldersAreListedShownAndServed(t *testing.T) {
+	const foldered = "../docs/testdata/foldered"
+	handler := Handler(foldered)
+
+	got := decodeDetail(t, request(t, handler, http.MethodGet, "/api/docs/001-Design.md", ""))
+	if got.Path != "docs/ref/001-Design.md" {
+		t.Errorf("path %q, want docs/ref/001-Design.md", got.Path)
+	}
+
+	for _, target := range []string{"/docs/ref/001-Design.md", "/docs/task/002-Ship-the-loader.md", "/docs/images/diagram.svg"} {
+		if code := request(t, handler, http.MethodGet, target, "").Code; code != http.StatusOK {
+			t.Errorf("GET %s: status %d", target, code)
+		}
+	}
+}

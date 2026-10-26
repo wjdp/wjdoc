@@ -204,3 +204,31 @@ func TestSetMoveInAFlatProjectDoesNotMove(t *testing.T) {
 		t.Errorf("set --move moved a doc in a flat project")
 	}
 }
+
+func TestRepadRenamesWithinEachFolder(t *testing.T) {
+	root := copyTree(t, folderedFixture)
+
+	runInOK(t, root, "repad", "--width", "4")
+
+	if got := read(t, filepath.Join(root, "docs", "ref", "0001-Design.md")); !strings.Contains(got, "[002](../task/0002-Ship-the-loader.md#plan)") {
+		t.Errorf("link across folders was not repadded:\n%s", got)
+	}
+	if got := read(t, filepath.Join(root, "src", "main.go")); !strings.Contains(got, "docs/ref/0001-Design.md and docs/task/0002-Ship-the-loader.md") {
+		t.Errorf("code references were not repadded:\n%s", got)
+	}
+	if out := runInOK(t, root, "lint", "--plain"); out != "" {
+		t.Errorf("lint after repad:\n%s", out)
+	}
+}
+
+func TestReadingCommandsSeeEveryFolder(t *testing.T) {
+	if got := lines(runInOK(t, folderedFixture, "list", "--plain")); len(got) != 4 || !strings.HasPrefix(got[1], "docs/ref/001-Design.md\t") {
+		t.Errorf("list:\n%s", strings.Join(got, "\n"))
+	}
+	if got := runInOK(t, folderedFixture, "search", "Do it", "--plain"); !strings.HasPrefix(got, "docs/task/002-Ship-the-loader.md:") {
+		t.Errorf("search: %q", got)
+	}
+	if got := runInOK(t, folderedFixture, "backlinks", "1", "--plain"); !strings.Contains(got, "docs/task/002-Ship-the-loader.md") || !strings.Contains(got, "src/main.go") {
+		t.Errorf("backlinks:\n%s", got)
+	}
+}
