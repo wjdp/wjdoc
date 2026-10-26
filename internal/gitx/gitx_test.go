@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -26,7 +27,7 @@ func git(t *testing.T, root string, args ...string) {
 func writeDoc(t *testing.T, root, name string) {
 	t.Helper()
 	docsDir := filepath.Join(root, "docs")
-	if err := os.MkdirAll(docsDir, 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(filepath.Join(docsDir, name)), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(docsDir, name), []byte("# doc\n"), 0o644); err != nil {
@@ -116,7 +117,7 @@ func TestDocNamesOutsideARepositoryIsEmpty(t *testing.T) {
 func writeFile(t *testing.T, root, name, content string) {
 	t.Helper()
 	docsDir := filepath.Join(root, "docs")
-	if err := os.MkdirAll(docsDir, 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(filepath.Join(docsDir, name)), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(docsDir, name), []byte(content), 0o644); err != nil {
@@ -327,5 +328,93 @@ func TestStatusAtOfAMissingFileIsEmpty(t *testing.T) {
 	}
 	if status != "" {
 		t.Errorf("got %q, want empty", status)
+	}
+}
+
+func TestDocNamesAcrossBranchesSeesDocsInFolders(t *testing.T) {
+	root := repository(t)
+	git(t, root, "checkout", "-b", "foldered")
+	writeDoc(t, root, "ref/003-Third.md")
+	git(t, root, "add", "docs/ref/003-Third.md")
+	git(t, root, "commit", "-m", "third")
+	git(t, root, "checkout", "master")
+
+	names, err := DocNamesAcrossBranches(root)
+	if err != nil {
+		t.Fatalf("DocNamesAcrossBranches: %v", err)
+	}
+	if !slices.Contains(names, "003-Third.md") {
+		t.Errorf("got %v, want it to include 003-Third.md from inside ref/", names)
+	}
+}
+
+// movedRepository adds a reference doc at the top of docs/, edits it, then
+// moves it untouched into ref/, each commit on a known day.
+func movedRepository(t *testing.T) string {
+	t.Helper()
+	requireGit(t)
+
+	root := t.TempDir()
+	git(t, root, "init", "--initial-branch=master")
+	git(t, root, "config", "user.email", "test@example.com")
+	git(t, root, "config", "user.name", "Test")
+
+	writeFile(t, root, "001-First.md", "---\ntype: task\nstatus: todo\n---\n\n"+longBody("one"))
+	git(t, root, "add", "docs/001-First.md")
+	commitAt(t, root, day(t, "2026-01-01"), "add first")
+
+	writeFile(t, root, "001-First.md", "---\ntype: task\nstatus: done\n---\n\n"+longBody("one"))
+	git(t, root, "add", "docs/001-First.md")
+	commitAt(t, root, day(t, "2026-02-01"), "finish first")
+
+	if err := os.MkdirAll(filepath.Join(root, "docs", "task"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	git(t, root, "mv", "docs/001-First.md", "docs/task/001-First.md")
+	commitAt(t, root, day(t, "2026-03-01"), "move first")
+
+	return root
+}
+
+func TestDocumentDatesTreatAMoveBetweenFoldersAsARename(t *testing.T) {
+	root := movedRepository(t)
+
+	dates, err := DocumentDates(root, []string{"docs/task/001-First.md"})
+	if err != nil {
+		t.Fatalf("DocumentDates: %v", err)
+	}
+	moved := dates["docs/task/001-First.md"]
+	if got := moved.Created.Format("2006-01-02"); got != "2026-01-01" {
+		t.Errorf("created %q, want the first commit at the top of docs/", got)
+	}
+	if got := moved.Modified.Format("2006-01-02"); got != "2026-02-01" {
+		t.Errorf("modified %q, want the last content change, not the move", got)
+	}
+}
+
+func TestHistoryReadsStatusesFromBeforeAMove(t *testing.T) {
+	root := movedRepository(t)
+
+	commits, err := History(root, "docs/task/001-First.md")
+	if err != nil {
+		t.Fatalf("History: %v", err)
+	}
+	if len(commits) != 3 {
+		t.Fatalf("got %d commits, want 3: %v", len(commits), commits)
+	}
+
+	wantPaths := []string{"docs/task/001-First.md", "docs/001-First.md", "docs/001-First.md"}
+	wantStatuses := []string{"done", "done", "todo"}
+	for index, commit := range commits {
+		if commit.Path != wantPaths[index] {
+			t.Errorf("commit %d path %q, want %q", index, commit.Path, wantPaths[index])
+		}
+		status, err := StatusAt(root, commit.Hash, commit.Path)
+		if err != nil {
+			t.Fatalf("StatusAt: %v", err)
+		}
+		if status != wantStatuses[index] {
+			t.Errorf("commit %d status %q, want %q", index, status, wantStatuses[index])
+		}
 	}
 }

@@ -420,3 +420,80 @@ func TestWidth(t *testing.T) {
 		})
 	}
 }
+
+func TestLoadReadsTheTypeFoldersInNumberOrder(t *testing.T) {
+	documents, err := Load("testdata/mixed")
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+
+	want := []string{
+		"docs/000-Docs.md",
+		"docs/ref/001-Design.md",
+		"docs/task/002-Misfiled-reference.md",
+		"docs/ref/003-Misfiled-task.md",
+		"docs/004-Still-at-the-top.md",
+	}
+	if len(documents) != len(want) {
+		t.Fatalf("loaded %d documents, want %d: %v", len(documents), len(want), documents)
+	}
+	for index, document := range documents {
+		if document.Path != want[index] {
+			t.Errorf("document %d is %q, want %q", index, document.Path, want[index])
+		}
+	}
+	if folder := documents[1].Folder(); folder != RefFolder {
+		t.Errorf("folder of %s is %q, want %q", documents[1].Path, folder, RefFolder)
+	}
+	if folder := documents[0].Folder(); folder != "" {
+		t.Errorf("folder of %s is %q, want the top level", documents[0].Path, folder)
+	}
+}
+
+func TestResolveFindsANumberInAnyFolder(t *testing.T) {
+	documents, err := Load("testdata/foldered")
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	for ref, want := range map[string]string{
+		"2":                              "docs/task/002-Ship-the-loader.md",
+		"001-Design.md":                  "docs/ref/001-Design.md",
+		"docs/task/003-Loader-review.md": "docs/task/003-Loader-review.md",
+	} {
+		document, err := Resolve(documents, ref)
+		if err != nil || document.Path != want {
+			t.Errorf("Resolve(%q) = %q, %v; want %q", ref, document.Path, err, want)
+		}
+	}
+}
+
+func TestLayout(t *testing.T) {
+	if Foldered(fixtureRoot) {
+		t.Errorf("%s has no type folders but reads as foldered", fixtureRoot)
+	}
+	if !Foldered("testdata/foldered") {
+		t.Errorf("testdata/foldered reads as flat")
+	}
+	for docType, want := range map[string]string{"reference": RefFolder, "Reference": RefFolder, "task": TaskFolder, "review": TaskFolder, "idea": TaskFolder} {
+		if got := FolderFor(docType); got != want {
+			t.Errorf("FolderFor(%q) = %q, want %q", docType, got, want)
+		}
+	}
+}
+
+func TestUnrecognisedFoldersHoldingMarkdown(t *testing.T) {
+	cases := map[string][]string{
+		fixtureRoot:         nil,
+		"testdata/foldered": nil,
+		"testdata/mixed":    {"docs/notes", "docs/task/old"},
+	}
+	for root, want := range cases {
+		got, err := UnrecognisedFolders(root)
+		if err != nil {
+			t.Fatalf("UnrecognisedFolders(%s): %v", root, err)
+		}
+		if strings.Join(got, ",") != strings.Join(want, ",") {
+			t.Errorf("UnrecognisedFolders(%s) = %v, want %v", root, got, want)
+		}
+	}
+}

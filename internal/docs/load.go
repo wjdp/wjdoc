@@ -26,9 +26,10 @@ func ParseName(name string) (number, width int, slug string, ok bool) {
 	return number, len(match[1]), match[2], true
 }
 
-// Load reads every markdown file directly inside root/docs, sorted by filename.
-// Files that do not match the naming convention are still returned, with
-// Number -1, so that lint can report them.
+// Load reads every markdown file directly inside root/docs and inside its
+// ref/ and task/ folders, sorted by filename so that numbers interleave across
+// folders. Files that do not match the naming convention are still returned,
+// with Number -1, so that lint can report them.
 func Load(root string) ([]Document, error) {
 	root, err := filepath.Abs(root)
 	if err != nil {
@@ -36,36 +37,53 @@ func Load(root string) ([]Document, error) {
 	}
 
 	docsDir := filepath.Join(root, "docs")
-	entries, err := os.ReadDir(docsDir)
+	paths, err := markdownIn(docsDir)
 	if err != nil {
 		return nil, err
 	}
-
-	names := make([]string, 0, len(entries))
-	for _, entry := range entries {
-		if entry.IsDir() || !strings.EqualFold(filepath.Ext(entry.Name()), ".md") {
-			continue
+	for _, folder := range Folders {
+		inFolder, err := markdownIn(filepath.Join(docsDir, folder))
+		if err != nil && !os.IsNotExist(err) {
+			return nil, err
 		}
-		names = append(names, entry.Name())
+		paths = append(paths, inFolder...)
 	}
-	sort.Slice(names, func(i, j int) bool {
-		left, right := strings.ToLower(names[i]), strings.ToLower(names[j])
-		if left == right {
-			return names[i] < names[j]
+	sort.Slice(paths, func(i, j int) bool {
+		left, right := strings.ToLower(filepath.Base(paths[i])), strings.ToLower(filepath.Base(paths[j]))
+		if left != right {
+			return left < right
 		}
-		return left < right
+		if filepath.Base(paths[i]) != filepath.Base(paths[j]) {
+			return filepath.Base(paths[i]) < filepath.Base(paths[j])
+		}
+		return paths[i] < paths[j]
 	})
 
-	documents := make([]Document, 0, len(names))
-	for _, name := range names {
-		absPath := filepath.Join(docsDir, name)
+	documents := make([]Document, 0, len(paths))
+	for _, absPath := range paths {
 		source, err := os.ReadFile(absPath)
 		if err != nil {
 			return nil, err
 		}
-		documents = append(documents, newDocument(root, absPath, name, string(source)))
+		documents = append(documents, newDocument(root, absPath, filepath.Base(absPath), string(source)))
 	}
 	return documents, nil
+}
+
+// markdownIn lists the absolute paths of the markdown files directly inside
+// directory.
+func markdownIn(directory string) ([]string, error) {
+	entries, err := os.ReadDir(directory)
+	if err != nil {
+		return nil, err
+	}
+	paths := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		if !entry.IsDir() && isMarkdown(entry.Name()) {
+			paths = append(paths, filepath.Join(directory, entry.Name()))
+		}
+	}
+	return paths, nil
 }
 
 func newDocument(root, absPath, name, source string) Document {

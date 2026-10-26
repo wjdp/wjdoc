@@ -32,7 +32,7 @@ func Run(root string, args ...string) (string, error) {
 	return strings.TrimSpace(stdout.String()), nil
 }
 
-// DocNamesAcrossBranches lists the filenames under docs/ on every local and
+// DocNamesAcrossBranches lists the filenames anywhere under docs/ on every local and
 // remote branch, so that numbers allocated on another branch are not reused.
 // It returns nil without an error when git is unavailable or root is not a
 // repository: number allocation still works, it just sees less.
@@ -48,7 +48,7 @@ func DocNamesAcrossBranches(root string) ([]string, error) {
 		if ref == "" {
 			continue
 		}
-		listing, err := Run(root, "ls-tree", "--name-only", ref, "docs/")
+		listing, err := Run(root, "ls-tree", "-r", "--name-only", ref, "docs/")
 		if err != nil {
 			continue
 		}
@@ -75,6 +75,9 @@ type Commit struct {
 	Short   string
 	Date    time.Time
 	Subject string
+	// Path is where the document was in this commit, which differs from its
+	// path today when it has since been renamed or moved.
+	Path string
 }
 
 // Dates are the git-derived lifetimes of a document: the commit that first
@@ -169,15 +172,21 @@ func changesContent(change string) bool {
 // History lists the commits touching path, newest first, following renames.
 // Outside a repository it returns nothing.
 func History(root, path string) ([]Commit, error) {
-	log, err := Run(root, "-c", "core.quotePath=false", "log", "--follow",
-		"--format=%H%x00%h%x00%cI%x00%s", "--", path)
+	log, err := Run(root, "-c", "core.quotePath=false", "log", "--follow", "--name-only",
+		"--format=%x00%H%x00%h%x00%cI%x00%s", "--", path)
 	if err != nil {
 		return nil, nil
 	}
 
 	commits := make([]Commit, 0)
 	for _, line := range strings.Split(log, "\n") {
-		fields := strings.Split(line, "\x00")
+		if !strings.HasPrefix(line, "\x00") {
+			if name := strings.TrimSpace(line); name != "" && len(commits) > 0 && commits[len(commits)-1].Path == "" {
+				commits[len(commits)-1].Path = name
+			}
+			continue
+		}
+		fields := strings.Split(line[1:], "\x00")
 		if len(fields) != 4 {
 			continue
 		}
@@ -186,6 +195,11 @@ func History(root, path string) ([]Commit, error) {
 			continue
 		}
 		commits = append(commits, Commit{Hash: fields[0], Short: fields[1], Date: date, Subject: fields[3]})
+	}
+	for index := range commits {
+		if commits[index].Path == "" {
+			commits[index].Path = path
+		}
 	}
 	return commits, nil
 }

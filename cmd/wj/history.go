@@ -100,7 +100,7 @@ func documentHistory(root, path string) ([]historyEntry, error) {
 
 	statuses := make([]string, len(commits))
 	for index, commit := range commits {
-		status, err := gitx.StatusAt(root, commit.Hash, path)
+		status, err := gitx.StatusAt(root, commit.Hash, commit.Path)
 		if err != nil {
 			return nil, err
 		}
