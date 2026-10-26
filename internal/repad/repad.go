@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -46,10 +47,10 @@ var (
 	searchNames      = []string{"AGENTS.md", "CLAUDE.md"}
 )
 
-// replacement is one old spelling of a filename and what it becomes.
-type replacement struct {
-	from string
-	to   string
+// Replacement is one old spelling of a filename and what it becomes.
+type Replacement struct {
+	From string
+	To   string
 }
 
 // New works out the renames and reference edits needed to pad every numbered
@@ -57,7 +58,7 @@ type replacement struct {
 // use, or when a new filename is already taken.
 func New(root string, documents []docs.Document, width int) (Plan, error) {
 	var plan Plan
-	var replacements []replacement
+	var replacements []Replacement
 
 	for _, document := range documents {
 		if document.Number < 0 || document.Width == 0 {
@@ -87,11 +88,7 @@ func New(root string, documents []docs.Document, width int) (Plan, error) {
 		return plan, nil
 	}
 
-	sort.SliceStable(replacements, func(i, j int) bool {
-		return len(replacements[i].from) > len(replacements[j].from)
-	})
-
-	edits, err := findEdits(root, replacements)
+	edits, err := FindEdits(root, replacements)
 	if err != nil {
 		return Plan{}, err
 	}
@@ -102,25 +99,31 @@ func New(root string, documents []docs.Document, width int) (Plan, error) {
 // spellings lists every way a reference can name the old file, paired with the
 // matching new spelling: the bare filename, the docs/-prefixed path, and the
 // %20-escaped forms when the name contains spaces.
-func spellings(oldPath, newPath string) []replacement {
+func spellings(oldPath, newPath string) []Replacement {
 	oldName, newName := path.Base(oldPath), path.Base(newPath)
 
-	found := []replacement{
+	found := []Replacement{
 		{oldPath, newPath},
 		{oldName, newName},
 	}
 	if strings.ContainsRune(oldName, ' ') {
 		escape := func(text string) string { return strings.ReplaceAll(text, " ", "%20") }
 		found = append(found,
-			replacement{escape(oldPath), escape(newPath)},
-			replacement{escape(oldName), escape(newName)},
+			Replacement{escape(oldPath), escape(newPath)},
+			Replacement{escape(oldName), escape(newName)},
 		)
 	}
 	return found
 }
 
-// findEdits locates every line in the repository mentioning an old filename.
-func findEdits(root string, replacements []replacement) ([]Edit, error) {
+// FindEdits locates every line in the repository mentioning an old spelling,
+// longest spelling first.
+func FindEdits(root string, replacements []Replacement) ([]Edit, error) {
+	replacements = slices.Clone(replacements)
+	sort.SliceStable(replacements, func(i, j int) bool {
+		return len(replacements[i].From) > len(replacements[j].From)
+	})
+
 	candidates, err := searchWithRipgrep(root, replacements)
 	if err != nil {
 		candidates, err = searchByWalking(root)
@@ -135,8 +138,8 @@ func findEdits(root string, replacements []replacement) ([]Edit, error) {
 			edits = append(edits, Edit{
 				Path: candidate.path,
 				Line: candidate.line,
-				From: applied.from,
-				To:   applied.to,
+				From: applied.From,
+				To:   applied.To,
 			})
 		}
 	}
@@ -157,10 +160,10 @@ type candidate struct {
 	text string
 }
 
-func searchWithRipgrep(root string, replacements []replacement) ([]candidate, error) {
+func searchWithRipgrep(root string, replacements []Replacement) ([]candidate, error) {
 	args := []string{"--line-number", "--no-heading", "--fixed-strings", "--color=never", "--glob", "!.git"}
 	for _, item := range replacements {
-		args = append(args, "-e", item.from)
+		args = append(args, "-e", item.From)
 	}
 	args = append(args, ".")
 
@@ -265,21 +268,21 @@ func searchable(name string) bool {
 
 // appliedTo lists the distinct replacements that match somewhere in the line,
 // longest spelling first so that "docs/07-x.md" is not also seen as "07-x.md".
-func appliedTo(line string, replacements []replacement) []replacement {
-	var applied []replacement
+func appliedTo(line string, replacements []Replacement) []Replacement {
+	var applied []Replacement
 	seen := map[string]bool{}
 
 	for offset := 0; offset < len(line); {
 		matched := false
 		for _, item := range replacements {
-			if !strings.HasPrefix(line[offset:], item.from) || !wholeWord(line, offset, len(item.from)) {
+			if !strings.HasPrefix(line[offset:], item.From) || !wholeWord(line, offset, len(item.From)) {
 				continue
 			}
-			if !seen[item.from] {
-				seen[item.from] = true
+			if !seen[item.From] {
+				seen[item.From] = true
 				applied = append(applied, item)
 			}
-			offset += len(item.from)
+			offset += len(item.From)
 			matched = true
 			break
 		}
@@ -335,7 +338,7 @@ func Apply(root string, plan Plan) error {
 	if err := applyEdits(root, plan.Edits); err != nil {
 		return err
 	}
-	return applyRenames(root, plan.Renames)
+	return ApplyRenames(root, plan.Renames)
 }
 
 func applyEdits(root string, edits []Edit) error {
@@ -365,7 +368,7 @@ func applyEdits(root string, edits []Edit) error {
 			if index < 0 || index >= len(lines) {
 				return fmt.Errorf("%s has no line %d", filePath, edit.Line)
 			}
-			lines[index] = replaceWholeWord(lines[index], edit.From, edit.To)
+			lines[index] = ReplaceWholeWord(lines[index], edit.From, edit.To)
 		}
 
 		if err := os.WriteFile(absPath, []byte(strings.Join(lines, "\n")), info.Mode().Perm()); err != nil {
@@ -375,7 +378,9 @@ func applyEdits(root string, edits []Edit) error {
 	return nil
 }
 
-func replaceWholeWord(line, from, to string) string {
+// ReplaceWholeWord replaces every occurrence of from in line that is not part
+// of a longer word.
+func ReplaceWholeWord(line, from, to string) string {
 	var builder strings.Builder
 	for offset := 0; offset < len(line); {
 		if strings.HasPrefix(line[offset:], from) && wholeWord(line, offset, len(from)) {
@@ -389,10 +394,15 @@ func replaceWholeWord(line, from, to string) string {
 	return builder.String()
 }
 
-func applyRenames(root string, renames []Rename) error {
+// ApplyRenames moves each file, with git mv in a repository, creating the
+// destination folder when it is missing.
+func ApplyRenames(root string, renames []Rename) error {
 	tracked := isGitRepository(root)
 
 	for _, rename := range renames {
+		if err := os.MkdirAll(filepath.Dir(filepath.Join(root, filepath.FromSlash(rename.To))), 0o755); err != nil {
+			return err
+		}
 		if tracked {
 			if _, err := gitx.Run(root, "mv", rename.From, rename.To); err == nil {
 				continue
