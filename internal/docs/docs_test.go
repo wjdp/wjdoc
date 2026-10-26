@@ -481,19 +481,19 @@ func TestLayout(t *testing.T) {
 	}
 }
 
-func TestUnrecognisedFoldersHoldingMarkdown(t *testing.T) {
+func TestUnloadedMarkdownBelowDocs(t *testing.T) {
 	cases := map[string][]string{
 		fixtureRoot:         nil,
 		"testdata/foldered": nil,
-		"testdata/mixed":    {"docs/notes", "docs/task/old"},
+		"testdata/mixed":    {"docs/notes/scratch.md", "docs/task/old/archived.md"},
 	}
 	for root, want := range cases {
-		got, err := UnrecognisedFolders(root)
+		got, err := Unloaded(root)
 		if err != nil {
-			t.Fatalf("UnrecognisedFolders(%s): %v", root, err)
+			t.Fatalf("Unloaded(%s): %v", root, err)
 		}
 		if strings.Join(got, ",") != strings.Join(want, ",") {
-			t.Errorf("UnrecognisedFolders(%s) = %v, want %v", root, got, want)
+			t.Errorf("Unloaded(%s) = %v, want %v", root, got, want)
 		}
 	}
 }

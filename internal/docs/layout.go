@@ -52,29 +52,28 @@ func (d Document) IsAboutDoc() bool {
 	return d.Number == 0
 }
 
-// UnrecognisedFolders lists the repo-relative subfolders of docs/ that hold
-// markdown but are not loaded: any folder other than ref/ and task/, and any
-// folder nested below those.
-func UnrecognisedFolders(root string) ([]string, error) {
+// Unloaded lists the repo-relative markdown files below docs/ that Load does
+// not read: those in any folder other than ref/ and task/, and in any folder
+// nested below those.
+func Unloaded(root string) ([]string, error) {
 	docsDir := filepath.Join(root, "docs")
 	var found []string
 	err := filepath.WalkDir(docsDir, func(absPath string, entry os.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
-		if !entry.IsDir() || absPath == docsDir {
+		if entry.IsDir() || !isMarkdown(entry.Name()) {
 			return nil
 		}
 		relative, err := filepath.Rel(docsDir, absPath)
 		if err != nil {
 			return err
 		}
-		if !strings.Contains(relative, string(filepath.Separator)) && isRecognisedFolder(relative) {
+		parts := strings.Split(filepath.ToSlash(relative), "/")
+		if len(parts) == 1 || len(parts) == 2 && isRecognisedFolder(parts[0]) {
 			return nil
 		}
-		if holdsMarkdown(absPath) {
-			found = append(found, filepath.ToSlash(filepath.Join("docs", relative)))
-		}
+		found = append(found, "docs/"+filepath.ToSlash(relative))
 		return nil
 	})
 	return found, err
@@ -82,19 +81,6 @@ func UnrecognisedFolders(root string) ([]string, error) {
 
 func isRecognisedFolder(name string) bool {
 	return slices.Contains(Folders, name)
-}
-
-func holdsMarkdown(directory string) bool {
-	entries, err := os.ReadDir(directory)
-	if err != nil {
-		return false
-	}
-	for _, entry := range entries {
-		if !entry.IsDir() && isMarkdown(entry.Name()) {
-			return true
-		}
-	}
-	return false
 }
 
 func isMarkdown(name string) bool {
