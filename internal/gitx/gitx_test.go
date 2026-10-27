@@ -418,3 +418,60 @@ func TestHistoryReadsStatusesFromBeforeAMove(t *testing.T) {
 		}
 	}
 }
+
+// stagedMoveRepository is movedRepository with the move staged, not committed,
+// and the moved file edited afterwards as wj move does to its links.
+func stagedMoveRepository(t *testing.T) string {
+	t.Helper()
+	requireGit(t)
+
+	root := t.TempDir()
+	git(t, root, "init", "--initial-branch=master")
+	git(t, root, "config", "user.email", "test@example.com")
+	git(t, root, "config", "user.name", "Test")
+
+	writeFile(t, root, "001-First.md", "---\ntype: task\nstatus: todo\n---\n\n"+longBody("one"))
+	git(t, root, "add", "docs/001-First.md")
+	commitAt(t, root, day(t, "2026-01-01"), "add first")
+
+	writeFile(t, root, "001-First.md", "---\ntype: task\nstatus: done\n---\n\n"+longBody("one"))
+	git(t, root, "add", "docs/001-First.md")
+	commitAt(t, root, day(t, "2026-02-01"), "finish first")
+
+	if err := os.MkdirAll(filepath.Join(root, "docs", "task"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	git(t, root, "mv", "docs/001-First.md", "docs/task/001-First.md")
+	writeFile(t, root, "task/001-First.md", "---\ntype: task\nstatus: done\n---\n\n"+longBody("edited link"))
+	return root
+}
+
+func TestDatesAndHistoryFollowAStagedMove(t *testing.T) {
+	root := stagedMoveRepository(t)
+
+	dates, err := DocumentDates(root, []string{"docs/task/001-First.md"})
+	if err != nil {
+		t.Fatalf("DocumentDates: %v", err)
+	}
+	moved := dates["docs/task/001-First.md"]
+	if moved.Created.Format("2006-01-02") != "2026-01-01" || moved.Modified.Format("2006-01-02") != "2026-02-01" {
+		t.Errorf("dates %+v, want those from before the staged move", moved)
+	}
+
+	commits, err := History(root, "docs/task/001-First.md")
+	if err != nil {
+		t.Fatalf("History: %v", err)
+	}
+	if len(commits) != 2 {
+		t.Fatalf("got %d commits, want 2: %v", len(commits), commits)
+	}
+	for index, want := range []string{"done", "todo"} {
+		status, err := StatusAt(root, commits[index].Hash, commits[index].Path)
+		if err != nil {
+			t.Fatalf("StatusAt: %v", err)
+		}
+		if status != want {
+			t.Errorf("commit %d status %q at %s, want %q", index, status, commits[index].Path, want)
+		}
+	}
+}

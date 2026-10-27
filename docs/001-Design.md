@@ -65,7 +65,7 @@ Writing:
 Checking:
 
 - `wj lint [paths]` exit 1 on errors, 0 with warnings. Errors: missing or unparseable frontmatter, missing `type`, missing `status` where required, `tags` not a list of strings, `priority` not a single value, duplicate number, broken relative link, filename not matching the pattern (including a lowercase first letter after the number). Warnings: unknown type, status or priority, `status` or `priority` on a reference, a badly shaped or repeated tag, mixed padding widths, link to a superseded doc from an active one (inactive docs are history, so their links stay as written), markdown in a folder wj does not read. In a foldered project only: a doc in the folder that does not suit its type, a numbered doc at the top level other than the about-doc, the about-doc inside a folder.
-- Output format on non-TTY is `path:line: level: message`, one per line, so agents and editors can parse it.
+- Output format on non-TTY is `path:line: level: message`, one per line, so agents and editors can parse it. A finding about the file as a whole (its name, padding, number or folder) has no line and prints `path: level: message`.
 
 Git awareness (all read-only, shelling out to `git`):
 

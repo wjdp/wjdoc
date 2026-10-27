@@ -99,9 +99,18 @@ func DocumentDates(root string, paths []string) (map[string]Dates, error) {
 		return dates, nil
 	}
 
+	// A document renamed but not yet committed is looked up under the path
+	// history knows it by, and reported under its path today.
+	staged := StagedRenames(root)
+	todayOf := map[string]string{}
 	wanted := make(map[string]bool, len(paths))
 	for _, path := range paths {
-		wanted[path] = true
+		committed := path
+		if earlier, renamed := staged[path]; renamed {
+			committed = earlier
+		}
+		todayOf[committed] = path
+		wanted[committed] = true
 	}
 
 	log, err := Run(root, "-c", "core.quotePath=false", "log",
@@ -157,7 +166,30 @@ func DocumentDates(root string, paths []string) (map[string]Dates, error) {
 		}
 		dates[name] = entry
 	}
-	return dates, nil
+
+	reported := make(map[string]Dates, len(dates))
+	for committed, entry := range dates {
+		reported[todayOf[committed]] = entry
+	}
+	return reported, nil
+}
+
+// StagedRenames maps each document renamed in the index but not yet committed
+// to the path it has in HEAD, so that history can be read before the commit.
+// It is empty outside a repository or before the first commit.
+func StagedRenames(root string) map[string]string {
+	renames := map[string]string{}
+	listing, err := Run(root, "-c", "core.quotePath=false", "diff", "--cached", "--name-status", "-M", "HEAD", "--", "docs/")
+	if err != nil {
+		return renames
+	}
+	for _, line := range strings.Split(listing, "\n") {
+		fields := strings.Split(strings.TrimRight(line, "\r"), "\t")
+		if len(fields) == 3 && strings.HasPrefix(fields[0], "R") {
+			renames[fields[2]] = fields[1]
+		}
+	}
+	return renames
 }
 
 // changesContent reports whether a --name-status change letter touched the
@@ -169,11 +201,16 @@ func changesContent(change string) bool {
 	return strings.HasPrefix(change, "A") || strings.HasPrefix(change, "M") || strings.HasPrefix(change, "R")
 }
 
-// History lists the commits touching path, newest first, following renames.
+// History lists the commits touching path, newest first, following renames,
+// including one staged but not yet committed.
 // Outside a repository it returns nothing.
 func History(root, path string) ([]Commit, error) {
+	committed := path
+	if earlier, renamed := StagedRenames(root)[path]; renamed {
+		committed = earlier
+	}
 	log, err := Run(root, "-c", "core.quotePath=false", "log", "--follow", "--name-only",
-		"--format=%x00%H%x00%h%x00%cI%x00%s", "--", path)
+		"--format=%x00%H%x00%h%x00%cI%x00%s", "--", committed)
 	if err != nil {
 		return nil, nil
 	}
@@ -198,7 +235,7 @@ func History(root, path string) ([]Commit, error) {
 	}
 	for index := range commits {
 		if commits[index].Path == "" {
-			commits[index].Path = path
+			commits[index].Path = committed
 		}
 	}
 	return commits, nil

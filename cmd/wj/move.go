@@ -124,7 +124,9 @@ func reportAndApply(command *cobra.Command, shared *app, plan move.Plan, dryRun 
 		return err
 	}
 	if shared.mode() != render.JSON {
-		fmt.Fprintf(out, "moved %d files, edited %d references; review and commit\n", len(plan.Renames), len(plan.Edits))
+		fmt.Fprintf(out, "moved %d %s, edited %d %s; review and commit\n",
+			len(plan.Renames), plural(len(plan.Renames), "file", "files"),
+			len(plan.Edits), plural(len(plan.Edits), "reference", "references"))
 	}
 	return nil
 }
