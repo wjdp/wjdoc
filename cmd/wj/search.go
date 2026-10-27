@@ -67,7 +67,7 @@ Examples:
 			}
 
 			mode := shared.mode()
-			rgArgs := []string{"--line-number", "--no-heading"}
+			rgArgs := []string{"--line-number", "--no-heading", "--threads", "1"}
 			if mode == render.Pretty {
 				rgArgs = append(rgArgs, "--color", "always", "--colors", "path:style:bold")
 			} else {

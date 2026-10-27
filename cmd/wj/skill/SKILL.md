@@ -8,6 +8,9 @@ description: Working in a repo with a docs/ folder managed by wj, or asked about
 `docs/` holds numbered markdown documents (`NNN-Sentence-case-title.md`) with
 YAML frontmatter: `type` (reference, review, task, bug) and, for all but
 reference, `status`. `wj` is the CLI that reads, writes and checks them.
+A project may split them into `docs/ref/` (reference) and `docs/task/`
+(everything else), so a doc's path can include its folder; `wj` finds a doc
+by number wherever it sits.
 
 ## Workflow
 
@@ -33,6 +36,9 @@ reference, `status`. `wj` is the CLI that reads, writes and checks them.
   and writes it. Editing an existing doc's frontmatter by hand is fine;
   `wj set` is the shortcut, and `wj lint` catches mistakes either way.
 - Never renumber files. The number is the document's identity.
+- Never move or rename a doc by hand. `wj move <ref>` moves it to the folder
+  that suits its type and rewrites every link; after changing a doc's type,
+  `wj set <ref> type <type> --move` does both.
 - Unknown `type` or `status` values are allowed; `wj lint` warns, it doesn't
   error.
 

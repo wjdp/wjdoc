@@ -21,14 +21,22 @@ var (
 	schemePattern    = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9+.-]*:`)
 )
 
-// Extract returns every link to another file in the repository, skipping
-// fenced code blocks, inline code spans, absolute URLs and bare fragments.
-// Targets are %-decoded for spaces and stripped of any "#fragment".
-func Extract(body string) []Link {
-	var found []Link
+// Destination is the raw destination of one markdown link as written, with
+// its 1-based line and its byte offsets within that line.
+type Destination struct {
+	Raw   string
+	Line  int
+	Start int
+	End   int
+}
+
+// Destinations returns the destination of every inline link and reference
+// definition in source, skipping fenced code blocks and inline code spans.
+func Destinations(source string) []Destination {
+	var found []Destination
 	fence := ""
 
-	for index, line := range strings.Split(body, "\n") {
+	for index, line := range strings.Split(source, "\n") {
 		trimmed := strings.TrimRight(line, "\r")
 		if marker := fencePattern.FindStringSubmatch(trimmed); marker != nil {
 			switch {
@@ -44,18 +52,30 @@ func Extract(body string) []Link {
 		}
 
 		lineNumber := index + 1
-		outsideCode := stripCodeSpans(trimmed)
+		outsideCode := blankCodeSpans(trimmed)
+		add := func(start, end int) {
+			found = append(found, Destination{Raw: trimmed[start:end], Line: lineNumber, Start: start, End: end})
+		}
 
-		if match := referencePattern.FindStringSubmatch(outsideCode); match != nil {
-			if target, ok := cleanTarget(match[1]); ok {
-				found = append(found, Link{Target: target, Line: lineNumber})
-			}
+		if match := referencePattern.FindStringSubmatchIndex(outsideCode); match != nil {
+			add(match[2], match[3])
 			continue
 		}
-		for _, match := range inlinePattern.FindAllStringSubmatch(outsideCode, -1) {
-			if target, ok := cleanTarget(match[1]); ok {
-				found = append(found, Link{Target: target, Line: lineNumber})
-			}
+		for _, match := range inlinePattern.FindAllStringSubmatchIndex(outsideCode, -1) {
+			add(match[2], match[3])
+		}
+	}
+	return found
+}
+
+// Extract returns every link to another file in the repository, skipping
+// fenced code blocks, inline code spans, absolute URLs and bare fragments.
+// Targets are %-decoded for spaces and stripped of any "#fragment".
+func Extract(body string) []Link {
+	var found []Link
+	for _, destination := range Destinations(body) {
+		if target, ok := cleanTarget(destination.Raw); ok {
+			found = append(found, Link{Target: target, Line: destination.Line})
 		}
 	}
 	return found
@@ -89,21 +109,26 @@ func cleanTarget(raw string) (string, bool) {
 	return target, true
 }
 
-// stripCodeSpans blanks out `code` runs so that links inside them are ignored.
-func stripCodeSpans(line string) string {
-	var out strings.Builder
-	rest := line
-	for {
-		open := strings.IndexByte(rest, '`')
+// blankCodeSpans replaces `code` runs, and everything after an unclosed
+// backtick, with spaces, so that links inside them are ignored while every
+// other byte keeps its offset.
+func blankCodeSpans(line string) string {
+	blanked := []byte(line)
+	for offset := 0; offset < len(blanked); {
+		open := strings.IndexByte(line[offset:], '`')
 		if open < 0 {
-			out.WriteString(rest)
-			return out.String()
+			break
 		}
-		out.WriteString(rest[:open])
-		end := strings.IndexByte(rest[open+1:], '`')
-		if end < 0 {
-			return out.String()
+		open += offset
+		end := strings.IndexByte(line[open+1:], '`')
+		last := len(line) - 1
+		if end >= 0 {
+			last = open + 1 + end
 		}
-		rest = rest[open+1+end+1:]
+		for index := open; index <= last; index++ {
+			blanked[index] = ' '
+		}
+		offset = last + 1
 	}
+	return string(blanked)
 }

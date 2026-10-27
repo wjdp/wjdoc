@@ -57,6 +57,7 @@ func Run(root string, documents []docs.Document) []Finding {
 	}
 
 	projectWidth := docs.Width(documents)
+	foldered := docs.Foldered(root)
 	byPath := map[string]docs.Document{}
 	for _, document := range documents {
 		byPath[document.Path] = document
@@ -89,6 +90,20 @@ func Run(root string, documents []docs.Document) []Finding {
 		}
 
 		findings = append(findings, linkFindings(root, byPath, document)...)
+		if foldered {
+			findings = append(findings, folderFindings(document)...)
+		}
+	}
+
+	unloaded, err := docs.Unloaded(root)
+	if err == nil {
+		for _, path := range unloaded {
+			findings = append(findings, Finding{
+				Path:    path,
+				Level:   Warning,
+				Message: "not read by wj: documents live in docs/, docs/ref/ or docs/task/",
+			})
+		}
 	}
 
 	sort.SliceStable(findings, func(i, j int) bool {
@@ -216,6 +231,31 @@ func linkFindings(root string, byPath map[string]docs.Document, document docs.Do
 		}
 	}
 	return findings
+}
+
+// folderFindings checks that a document in a foldered project sits where its
+// type says: the about-doc at the top of docs/, reference in ref/ and
+// everything else in task/.
+func folderFindings(document docs.Document) []Finding {
+	if document.Number < 0 || document.Type == "" {
+		return nil
+	}
+	finding := func(format string, args ...any) []Finding {
+		return []Finding{{Path: document.Path, Level: Warning, Message: fmt.Sprintf(format, args...)}}
+	}
+
+	folder, want := document.Folder(), docs.FolderFor(document.Type)
+	switch {
+	case document.IsAboutDoc():
+		if folder != "" {
+			return finding("the about-doc stays at the top of docs/")
+		}
+	case folder == "":
+		return finding("at the top of a foldered project, belongs in docs/%s/: run `wj move %d`, or `wj move --all` for every one", want, document.Number)
+	case folder != want:
+		return finding("a %s belongs in docs/%s/: run `wj move %d`", document.Type, want, document.Number)
+	}
+	return nil
 }
 
 func duplicates(documents []docs.Document, document docs.Document) []string {

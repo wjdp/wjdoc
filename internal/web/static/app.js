@@ -209,9 +209,11 @@ function renderDocument() {
   $("doc-priority").disabled = state.editing;
 }
 
-// Rendered markdown is relative to docs/, which the server serves at /docs/.
+// Rendered markdown is relative to the document's own folder, and the server
+// serves docs/ and its folders at /docs/.
 function docsURL(href) {
-  return new URL(href, `${location.origin}/docs/`);
+  const folder = state.current ? state.current.path.replace(/[^/]*$/, "") : "docs/";
+  return new URL(href, `${location.origin}/${folder}`);
 }
 
 function fixRelativeImages(container) {
@@ -320,10 +322,11 @@ function onViewClick(event) {
     link.rel = "noopener";
     return;
   }
-  const name = decodeURIComponent(url.pathname.replace(/^\/docs\//, ""));
-  if (state.docs.some((doc) => doc.name === name)) {
+  const linkedPath = decodeURIComponent(url.pathname.replace(/^\//, ""));
+  const linked = state.docs.find((doc) => doc.path === linkedPath);
+  if (linked) {
     event.preventDefault();
-    location.hash = encodeURIComponent(name);
+    location.hash = encodeURIComponent(linked.name);
     if (url.hash) setTimeout(() => document.getElementById(decodeURIComponent(url.hash.slice(1)))?.scrollIntoView(), 50);
   }
 }

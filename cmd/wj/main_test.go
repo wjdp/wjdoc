@@ -140,8 +140,8 @@ func TestConventionsDescribesType(t *testing.T) {
 	if !strings.Contains(got, "type") {
 		t.Errorf("conventions does not mention type:\n%s", got)
 	}
-	if count := len(lines(got)); count > 30 {
-		t.Errorf("conventions is %d lines, want at most 30", count)
+	if count := len(lines(got)); count > 36 {
+		t.Errorf("conventions is %d lines, want at most 36", count)
 	}
 }
 

@@ -3,6 +3,7 @@ package docs
 import (
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"unicode"
@@ -77,7 +78,8 @@ func Pad(number, width int) (string, error) {
 	return padded, nil
 }
 
-// Create writes a new document and returns its path relative to root. It
+// Create writes a new document and returns its path relative to root: in
+// docs/, or in a foldered project in the folder that suits its type. It
 // refuses to overwrite an existing file.
 func Create(root string, number, width int, docType, title string) (string, error) {
 	padded, err := Pad(number, width)
@@ -91,13 +93,20 @@ func Create(root string, number, width int, docType, title string) (string, erro
 		return "", fmt.Errorf("title %q has no usable characters for a filename", title)
 	}
 
-	path := filepath.ToSlash(filepath.Join("docs", padded+"-"+slug+".md"))
-	absPath := filepath.Join(root, filepath.FromSlash(path))
+	directory := "docs"
+	if Foldered(root) {
+		directory = path.Join("docs", FolderFor(docType))
+	}
+	relative := path.Join(directory, padded+"-"+slug+".md")
+	absPath := filepath.Join(root, filepath.FromSlash(relative))
+	if err := os.MkdirAll(filepath.Dir(absPath), 0o755); err != nil {
+		return "", err
+	}
 
 	file, err := os.OpenFile(absPath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
 	if err != nil {
 		if os.IsExist(err) {
-			return "", fmt.Errorf("%s already exists", path)
+			return "", fmt.Errorf("%s already exists", relative)
 		}
 		return "", err
 	}
@@ -106,7 +115,7 @@ func Create(root string, number, width int, docType, title string) (string, erro
 	if _, err := file.WriteString(newDocumentSource(docType, title)); err != nil {
 		return "", err
 	}
-	return path, file.Close()
+	return relative, file.Close()
 }
 
 func newDocumentSource(docType, title string) string {

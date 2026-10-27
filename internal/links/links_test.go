@@ -1,6 +1,9 @@
 package links
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestExtract(t *testing.T) {
 	cases := []struct {
@@ -99,5 +102,28 @@ func TestResolveTarget(t *testing.T) {
 				t.Errorf("got %q, want %q", got, testCase.want)
 			}
 		})
+	}
+}
+
+func TestDestinationsKeepTheirOffsets(t *testing.T) {
+	source := "intro\n`[not](a.md)` then [one](./b.md#part \"Title\") and [two](<c d.md>)\n[ref]: ../e.md\n"
+
+	got := Destinations(source)
+	want := []Destination{
+		{Raw: `./b.md#part "Title"`, Line: 2},
+		{Raw: "<c d.md>", Line: 2},
+		{Raw: "../e.md", Line: 3},
+	}
+	if len(got) != len(want) {
+		t.Fatalf("got %+v, want %d destinations", got, len(want))
+	}
+	lines := strings.Split(source, "\n")
+	for index, destination := range got {
+		if destination.Raw != want[index].Raw || destination.Line != want[index].Line {
+			t.Errorf("destination %d is %+v, want %+v", index, destination, want[index])
+		}
+		if text := lines[destination.Line-1][destination.Start:destination.End]; text != destination.Raw {
+			t.Errorf("offsets of %q select %q", destination.Raw, text)
+		}
 	}
 }

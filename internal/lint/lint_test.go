@@ -1,6 +1,8 @@
 package lint
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -171,4 +173,73 @@ func TestRunFlagsTheFilenamePatternAndSpacesSeparately(t *testing.T) {
 	if count != 1 {
 		t.Errorf("got %d findings for the spaced filename, want 1:\n%s", count, join(findings))
 	}
+}
+
+func runOn(t *testing.T, root string) []Finding {
+	t.Helper()
+
+	documents, err := docs.Load(root)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	return Run(root, documents)
+}
+
+func TestAFolderedProjectWithLinksAcrossFoldersIsClean(t *testing.T) {
+	if findings := runOn(t, "../docs/testdata/foldered"); len(findings) != 0 {
+		t.Errorf("got findings %v, want none", findings)
+	}
+}
+
+func TestLayoutWarningsInAMixedProject(t *testing.T) {
+	var got []string
+	for _, finding := range runOn(t, "../docs/testdata/mixed") {
+		got = append(got, format(finding))
+	}
+
+	want := []string{
+		"docs/004-Still-at-the-top.md: warning: at the top of a foldered project, belongs in docs/task/: run `wj move 4`, or `wj move --all` for every one",
+		"docs/notes/scratch.md: warning: not read by wj: documents live in docs/, docs/ref/ or docs/task/",
+		"docs/ref/003-Misfiled-task.md: warning: a task belongs in docs/task/: run `wj move 3`",
+		"docs/task/002-Misfiled-reference.md: warning: a reference belongs in docs/ref/: run `wj move 2`",
+		"docs/task/old/archived.md: warning: not read by wj: documents live in docs/, docs/ref/ or docs/task/",
+	}
+	if strings.Join(got, "\n") != strings.Join(want, "\n") {
+		t.Errorf("got:\n%s\nwant:\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
+	}
+}
+
+func TestDuplicateNumbersAcrossFoldersAreAnError(t *testing.T) {
+	root := t.TempDir()
+	if err := os.CopyFS(root, os.DirFS("../docs/testdata/foldered")); err != nil {
+		t.Fatal(err)
+	}
+	duplicate := filepath.Join(root, "docs", "task", "001-Design-notes.md")
+	if err := os.WriteFile(duplicate, []byte("---\ntype: task\nstatus: todo\n---\n\n# Design notes\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, finding := range runOn(t, root) {
+		if finding.Path == "docs/ref/001-Design.md" && finding.Message == "number 1 is also used by docs/task/001-Design-notes.md" {
+			return
+		}
+	}
+	t.Errorf("no duplicate-number error for 001 in ref/ and task/")
+}
+
+func TestAboutDocInAFolderIsAWarning(t *testing.T) {
+	root := t.TempDir()
+	if err := os.CopyFS(root, os.DirFS("../docs/testdata/foldered")); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Rename(filepath.Join(root, "docs", "000-Docs.md"), filepath.Join(root, "docs", "ref", "000-Docs.md")); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, finding := range runOn(t, root) {
+		if finding.Path == "docs/ref/000-Docs.md" && finding.Message == "the about-doc stays at the top of docs/" {
+			return
+		}
+	}
+	t.Errorf("no warning for the about-doc in ref/")
 }
