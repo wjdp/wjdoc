@@ -25,6 +25,7 @@ wj set 7 priority p1             p0 (urgent) to p4
 wj tag 7 area:engine             add a tag; wj tags lists those in use
 wj lint                          check the convention before committing
 wj next                          what to pick up next
+wj move --all                    split docs/ into ref/ and task/ folders
 ```
 
 ## Agent setup

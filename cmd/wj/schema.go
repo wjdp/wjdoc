@@ -35,6 +35,19 @@ type schemaTags struct {
 	Example string `json:"example"`
 }
 
+type schemaFolder struct {
+	Path  string   `json:"path"`
+	Types []string `json:"types"`
+}
+
+type schemaLayout struct {
+	Default  string         `json:"default"`
+	OptIn    string         `json:"opt_in"`
+	Folders  []schemaFolder `json:"folders"`
+	AboutDoc string         `json:"about_doc"`
+	Move     string         `json:"move"`
+}
+
 type schemaFrontmatter struct {
 	Required []string `json:"required"`
 	Optional []string `json:"optional"`
@@ -42,6 +55,7 @@ type schemaFrontmatter struct {
 
 type schemaDoc struct {
 	Filename      schemaFilename    `json:"filename"`
+	Layout        schemaLayout      `json:"layout"`
 	Types         []schemaType      `json:"types"`
 	Statuses      []schemaStatus    `json:"statuses"`
 	Priorities    []schemaPriority  `json:"priorities"`
@@ -90,6 +104,16 @@ func buildSchema() schemaDoc {
 		Filename: schemaFilename{
 			Pattern: `^\d+-[A-Z0-9].*\.md$`,
 			Example: "007-Sync-robustness.md",
+		},
+		Layout: schemaLayout{
+			Default: "flat: every document directly in docs/",
+			OptIn:   "foldered when docs/ref/ or docs/task/ exists",
+			Folders: []schemaFolder{
+				{Path: "docs/" + docs.RefFolder + "/", Types: []string{"reference"}},
+				{Path: "docs/" + docs.TaskFolder + "/", Types: []string{"*"}},
+			},
+			AboutDoc: "docs/",
+			Move:     "wj move <ref>, or wj move --all to migrate",
 		},
 		Types:      types,
 		Statuses:   statuses,

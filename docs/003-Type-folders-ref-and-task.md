@@ -1,6 +1,6 @@
 ---
 type: task
-status: in-progress
+status: done
 ---
 
 # Type folders ref and task
@@ -50,8 +50,9 @@ Writing:
 
 New command, to migrate and to fix a doc in the wrong folder:
 
-- `wj move <ref>... [--to ref|task] [-n/--dry-run]` moves docs into their folders and rewrites every link affected. Uses `git mv` in a repository. With no `--to`, each doc goes to the folder that suits its type.
-- `wj move --all` moves every top-level doc but `000`. It is the migration for a whole project, in one commit.
+- `wj move <ref>... [--to ref|task|top] [-n/--dry-run]` moves docs into their folders and rewrites every link affected. Uses `git mv` in a repository. With no `--to`, each doc goes to the folder that suits its type.
+- `wj move --all` moves every doc that is not where it belongs, so misfiled docs as well as top-level ones; `000` belongs at the top. It is the migration for a whole project, in one commit. With `--to`, it moves every doc but `000` there, and `--all --to top` undoes a migration.
+- A type folder that a move empties is removed, as an empty `ref/` or `task/` would keep the project foldered.
 - Rewriting links is not repad's text replacement. `repad.spellings` swaps one string for another, which holds only while the directory stays the same. After a move, a relative link depends on where both the linking file and its target sit:
   - Links into a moved doc, from other docs: `012-x.md` from `task/` becomes `../ref/012-x.md`.
   - Links out of a moved doc: every relative link is recomputed from its new folder, to docs and to anything else (`../AGENTS.md` becomes `../../AGENTS.md`).
@@ -59,11 +60,11 @@ New command, to migrate and to fix a doc in the wrong folder:
   - Code and agent files: `docs/NNN-…` to `docs/ref/NNN-…`, which is text replacement and can share repad's search (`findEdits` and its ripgrep path). Bare filenames in code are left alone, as they stay valid names.
 - Share `applyEdits` and `applyRenames` with `repad`, and the plan's dry-run printing. This is new link-aware code, the bulk of the work, not a refactor of repad.
 
-Lint, warnings only, and none fires on a flat project:
+Lint, warnings only, and none but the unread-folder warning fires on a flat project:
 
 - A doc in the folder that does not suit its type (`reference` in `task/`, anything else in `ref/`).
 - A numbered doc at the top level of a foldered project, other than `000`.
-- An unrecognised subfolder of `docs/` holding markdown. This is new: `Load` skips directories today, so such files are ignored silently.
+- Markdown in an unrecognised subfolder of `docs/`, reported once per file so that `wj lint <path>` and the hook select it. This is new: `Load` skips directories today, so such files are ignored silently. It fires in either layout, since such a file is a stray in both; none of the flat projects has one.
 - The duplicate-number error already compares numbers across all loaded docs (`lint.duplicates`). Confirm it catches 012 in both `ref/` and `task/`.
 - Broken links are already errors. After a hand move, lint reports every stale link, which is what points to `wj move`.
 
@@ -113,3 +114,13 @@ The other wj items from ttsd's doc 196 (`summary`, `caused-by` and `parent` fiel
 - The folders are `ref` and `task`, fixed in the convention for every project.
 - `wj set <ref> type …` moves the file only under `--move`; without it, it prints a hint naming `wj move`.
 - In a mixed project, `wj new` writes into the folders.
+
+## Outcome
+
+Delivered 2026-10-26 on the `type-folders` branch, plans 1 to 5. Step 6, migrating ttsd, is for the ttsd owner.
+
+- Flat output is unchanged: `list`, `next`, `lint`, `tags`, `show`, `links`, `backlinks`, `history`, `search`, `repad -n` on tetanus, grate, wjdp-os and ttsd match master, with two deliberate exceptions. `history` now reads statuses from before a rename, which corrects grate's doc 01. `search` runs `rg` on one thread so its output keeps document order, where before it changed from run to run.
+- `wj schema` gains a `layout` field and `wj conventions` a Layout section; the conventions length budget in its test goes from 30 to 36 lines.
+- On a clone of ttsd, `wj move --all` moved 195 docs (17 to `ref/`) and edited 286 references, and `wj lint` was clean. One mention is left for the ttsd owner: `packages/engine/schema/model-export-1.schema.json` pins the pattern `^docs/012-Deco-engine-conventions\.md#…`, a regex rather than a path, so wj does not rewrite it, and exported models carrying that path will need it too.
+- On a clone of tetanus, `wj move --all` then `wj move --all --to top` restored every byte.
+- The web front end was checked by resolving its URLs, not in a browser.

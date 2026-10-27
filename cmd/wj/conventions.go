@@ -16,6 +16,12 @@ const conventions = `Filenames
   (002-Prisma-to-Drizzle.md). No type prefix in the filename.
   000 (or 00) is the about-doc, type reference, and holds project specifics.
 
+Layout
+  Flat by default. A project with docs/ref/ or docs/task/ is foldered:
+  reference in ref/, every other type in task/, the about-doc at the top.
+  Numbers stay one sequence. Move docs with wj move (--all migrates) or
+  wj set <ref> type <t> --move, never by hand: they rewrite every link.
+
 Frontmatter
   YAML between --- fences, the first thing in the file.
   type    required. reference (evergreen), review (point-in-time assessment),
@@ -34,8 +40,8 @@ Frontmatter
 
 Body
   Title is the first "# " heading, falling back to the slug.
-  Links between docs are relative markdown links to the filename. Links from
-  code and agent files use docs/NNN-slug.md.
+  Links between docs are relative markdown links (../ref/NNN-slug.md across
+  folders). Links from code and agent files use the path from the repo root.
 `
 
 func conventionsCommand() *cobra.Command {

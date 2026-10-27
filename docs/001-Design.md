@@ -11,7 +11,7 @@ status: done
 
 - Project `wjdoc`, binary `wj`. Go. Install with `go install`.
 - Zero config. If config is ever needed it is `docs/wj.jsonc`.
-- One convention for every project, no per-project variation.
+- One convention for every project. The one variation is the optional type folders (below, [003](003-Type-folders-ref-and-task.md)), inferred from the tree rather than configured.
 - Wrapper, not framework: no section skeletons, no required headings. Structure is the project's and the agent's business.
 - Agents write doc files directly and rely on `wj lint`. No write-through-tool requirement.
 - Lint runs on commit, never on edit.
@@ -21,6 +21,8 @@ status: done
 ## Convention
 
 Filenames `NNN-Sentence-case-title.md` in `docs/`.
+
+Layout is flat by default: every document directly in `docs/`. A project opts into type folders by having `docs/ref/` or `docs/task/`; wj infers the layout from the tree, as it infers the padding width. In a foldered project reference lives in `docs/ref/` and every other type, unknown types included, in `docs/task/`. The about-doc stays at the top of `docs/` in both layouts. Numbers are one sequence across all of `docs/`. No other folder, and no folder below `ref/` or `task/`, holds documents.
 
 - The integer is the document's identity and is never reused or changed. Zero padding is presentation only. `wj` infers the padding width from the directory and allocates at that width; new projects start at three digits. When a width is exhausted `wj new` refuses and points at `wj repad --width N`, which pads every filename and rewrites links in docs and code in one commit.
 - Slug is the title with spaces replaced by hyphens, in sentence case: first letter uppercase, the rest as written so proper nouns keep their capitals (`002-Prisma-to-Drizzle.md`). No type prefix in the filename; that is what frontmatter is for.
@@ -37,7 +39,7 @@ Frontmatter, YAML between `---` fences, first thing in the file:
 
 Title is the first `# ` heading; falls back to the slug.
 
-Links between docs are relative markdown links to the filename. Links from code and agent files use `docs/NNN-slug.md`.
+Links between docs are relative markdown links to the file, so a link across folders reads `../ref/NNN-slug.md`. Links from code and agent files use the path from the repository root: `docs/NNN-slug.md`, or `docs/ref/NNN-slug.md` in a foldered project.
 
 ## Commands
 
@@ -53,15 +55,16 @@ Discovery and reading:
 
 Writing:
 
-- `wj new <type> <title>` allocates the next number and writes frontmatter and title. Max number is taken over every local and remote branch via `git ls-tree`, so parallel branches do not collide.
-- `wj set <ref> <key> <value>` edits one frontmatter key in place without touching the body. `wj set <ref> status done` is the common case.
+- `wj new <type> <title>` allocates the next number and writes frontmatter and title, in a foldered project into the folder that suits the type. Max number is taken over every local and remote branch via `git ls-tree -r`, so parallel branches do not collide.
+- `wj set <ref> <key> <value>` edits one frontmatter key in place without touching the body. `wj set <ref> status done` is the common case. In a foldered project, a `type` change that leaves the doc in the wrong folder prints the `wj move` that fixes it; `--move` does the move.
 - `wj tag <ref> <tag>... [--remove]` adds or removes tags, writing `tags` as one flow-style line.
 - `wj repad --width N [-n/--dry-run]` as above.
+- `wj move <ref>... [--to ref|task|top] [--all] [-n/--dry-run]` moves documents to the folder that suits their type, or to `--to`, and rewrites every link to and from them: links between docs are recomputed from where each file will be, keeping anchors, titles and a leading `./`, and `docs/`-prefixed paths are rewritten across the repository. `--all` moves every doc not where it belongs, which migrates a flat project. A type folder it empties is removed.
 - `wj init` creates `docs/` and the about-doc, appends one line to AGENTS.md or CLAUDE.md if present, and installs the pre-commit lint hook. Idempotent, safe on existing repos.
 
 Checking:
 
-- `wj lint [paths]` exit 1 on errors, 0 with warnings. Errors: missing or unparseable frontmatter, missing `type`, missing `status` where required, `tags` not a list of strings, `priority` not a single value, duplicate number, broken relative link, filename not matching the pattern (including a lowercase first letter after the number). Warnings: unknown type, status or priority, `status` or `priority` on a reference, a badly shaped or repeated tag, mixed padding widths, link to a superseded doc from an active one (inactive docs are history, so their links stay as written).
+- `wj lint [paths]` exit 1 on errors, 0 with warnings. Errors: missing or unparseable frontmatter, missing `type`, missing `status` where required, `tags` not a list of strings, `priority` not a single value, duplicate number, broken relative link, filename not matching the pattern (including a lowercase first letter after the number). Warnings: unknown type, status or priority, `status` or `priority` on a reference, a badly shaped or repeated tag, mixed padding widths, link to a superseded doc from an active one (inactive docs are history, so their links stay as written), markdown in a folder wj does not read. In a foldered project only: a doc in the folder that does not suit its type, a numbered doc at the top level other than the about-doc, the about-doc inside a folder.
 - Output format on non-TTY is `path:line: level: message`, one per line, so agents and editors can parse it.
 
 Git awareness (all read-only, shelling out to `git`):
